@@ -1,0 +1,35 @@
+---
+# RUN
+RUN_NAME: 'UNet_BCL_noaug'
+
+# Main configuration file
+# IMAGE PARAMETERS
+INPUT_IMAGE_SIZE: 512
+NUM_CHANNELS: 1
+
+# MODEL PARAMETERS
+MODEL: 'UNet' # Unet | DenseNet | AuxNet:encoder | AuxNet:decoder | AuxNet:dense
+TRAIN_MODE: 'default'
+NUM_CLASSES: 1
+MODEL_DEPTH: 4
+INIT_LR: 0.0001
+NUM_EPOCHS: 200
+BATCH_SIZE: 16
+THRESHOLD: 0.5
+
+# DATASET PARAMS
+TEST_SPLIT:  0.15
+SEED: 13
+IM_PER_CAT: 1703
+
+# PATHS
+FULL_RDR_JPG: '/scr1/mart_ol/ESPs/jpg/x01'
+DATASET_PATH: '/scr1/mart_ol/SemSeg/'
+OUTPUT_PATH: 'saved'
+
+# DDP paramenets
+GPU_COUNT: 4
+MASTER_ADDR: 'localhost'
+MASTER_PORT: '12355'
+
+

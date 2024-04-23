@@ -1,0 +1,6 @@
+**/__pycache__/*
+*.pth
+**/.ipynb_checkpoints/*
+*.png
+*.json
+*.onnx
