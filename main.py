@@ -4,7 +4,9 @@ from torch.optim import Adam
 import torch.multiprocessing as mp
 
 from utils.util import initModel
-from engines.trainer import AuxTrainer, ClsTrainer
+from engines.AuxTrainer import AuxTrainer
+from engines.ClsTrainer import ClsTrainer
+from engines.SegTrainer import SegTrainer
 from model.loss import getTotalLoss
 from configs.config_parser import Config
 from data_loader.dataset import getDataloaders

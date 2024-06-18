@@ -1,6 +1,6 @@
 ---
 # RUN
-RUN_NAME: 'UNet_BCL_noaug'
+RUN_NAME: 'UNet_BCL'
 
 # Main configuration file
 # IMAGE PARAMETERS
@@ -23,12 +23,12 @@ SEED: 13
 IM_PER_CAT: 1703
 
 # PATHS
-FULL_RDR_JPG: '/scr1/mart_ol/ESPs/jpg/x01'
-DATASET_PATH: '/scr1/mart_ol/SemSeg/'
+FULL_RDR_PNG: 'C:/Users/Oleksii/Desktop/pHD/DataStorage/MRO/RDR/png/x01'
+DATASET_PATH: 'C:/Users/Oleksii/Desktop/pHD/DataStorage/SemSeg/Scarp'
 OUTPUT_PATH: 'saved'
 
 # DDP paramenets
-GPU_COUNT: 4
+GPU_COUNT: 1
 MASTER_ADDR: 'localhost'
 MASTER_PORT: '12355'
 

@@ -11,7 +11,7 @@ from engines.ClsTrainer import ClsTrainer
 from engines.SegTrainer import SegTrainer
 from utils.util import initModel, ddp_setup, ddp_cleanup
 
-os.environ['NCCL_P2P_DISABLE'] = '1'
+# os.environ['NCCL_P2P_DISABLE'] = '1'
 
 def main(gpu_id, conf):
     conf.GPU_ID = gpu_id

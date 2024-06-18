@@ -22,7 +22,7 @@ class Config():
         print(f'[INFO] MODEL: {self.conf.MODEL_ID}, DATASET: {self.conf.DSET}, LOSS: {self.conf.LOSS}')
 
     def getConfig(self):
-        self.conf.MODEL_ID = f"{self.conf.MODEL}:{self.conf.TRAIN_MODE}"
+        self.conf.MODEL_ID = f"{self.conf.MODEL}_{self.conf.TRAIN_MODE}"
 
         self.conf.DATASET_PATH = f'{self.conf.DATASET_PATH}/{self.conf.INPUT_IMAGE_SIZE}'
         self.conf.IMAGE_DATASET_PATH = f'{self.conf.DATASET_PATH}/images'
@@ -67,11 +67,13 @@ class Config():
             self.conf.LOSS = 'segmentation'
             self.conf.SAVE_TRIG = 'test_loss'
 
-        self.conf.MDL_PATH = f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}/{self.conf.MODEL_ID}_model.pth"
-        self.conf.LOG_PATH = f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}/{self.conf.MODEL_ID}_log.json"
+        # self.conf.MDL_PATH = f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}/{self.conf.MODEL_ID}_model.pth"
+        # self.conf.LOG_PATH = f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}/{self.conf.MODEL_ID}_log.json"
+        self.conf.MDL_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL_ID}_model.pth"
+        self.conf.LOG_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL_ID}_log.json"
         self.conf.TTS_PATH = f"{self.conf.OUTPUT_PATH}/splits/tts_{self.conf.DSET}.json"
             
-        self.createFolders([f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}"])
+        self.createFolders([self.conf.OUTPUT_PATH, f'{self.conf.OUTPUT_PATH}/splits'])
         self.printModelConfing()
 
         return self.conf
