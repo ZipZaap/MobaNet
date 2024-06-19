@@ -10,13 +10,15 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
+from configs import CONF
+
 class AuxillaryDataset(Dataset):
-    def __init__(self, imIDs, transforms, conf):
+    def __init__(self, imIDs, transforms):
         self.imIDs = imIDs
         self.transforms = transforms
-        self.typs = json.load(open(conf.LABELS_JSON_PATH))['imIDs']
-        self.impath = conf.IMAGE_DATASET_PATH
-        self.maskpath = conf.MASK_DATASET_PATH
+        self.typs = json.load(open(CONF.LABELS_JSON_PATH))['imIDs']
+        self.impath = CONF.IMAGE_DATASET_PATH
+        self.maskpath = CONF.MASK_DATASET_PATH
 
     def __len__(self):
         return len(self.imIDs)
@@ -39,11 +41,11 @@ class AuxillaryDataset(Dataset):
         return (image, mask, typ)
     
 class SegmentationDataset(Dataset):
-    def __init__(self, imIDs, transforms, conf):
+    def __init__(self, imIDs, transforms):
         self.imIDs = imIDs
         self.transforms = transforms
-        self.impath = conf.IMAGE_DATASET_PATH
-        self.maskpath = conf.MASK_DATASET_PATH
+        self.impath = CONF.IMAGE_DATASET_PATH
+        self.maskpath = CONF.MASK_DATASET_PATH
 
     def __len__(self):
         return len(self.imIDs)
@@ -63,11 +65,11 @@ class SegmentationDataset(Dataset):
         return (image, mask)
 
 class ClassificationDataset(Dataset):
-    def __init__(self, imIDs, transforms, conf):
+    def __init__(self, imIDs, transforms):
         self.imIDs = imIDs
         self.transforms = transforms
-        self.typs = json.load(open(conf.LABELS_JSON_PATH))['imIDs']
-        self.impath = conf.IMAGE_DATASET_PATH
+        self.typs = json.load(open(CONF.LABELS_JSON_PATH))['imIDs']
+        self.impath = CONF.IMAGE_DATASET_PATH
 
     def __len__(self):
         return len(self.imIDs)
@@ -88,48 +90,48 @@ class ClassificationDataset(Dataset):
         return (image, typ)
     
 
-def get_tts(conf):
-    if conf.DSET == 'npld':
+def get_tts():
+    if CONF.DSET == 'npld':
         typs = ['npld']
-    elif conf.DSET == 'bu':
+    elif CONF.DSET == 'bu':
         typs = ['bu']
-    elif conf.DSET == 'scarp':
+    elif CONF.DSET == 'scarp':
         typs = ['scarp']
-    elif conf.DSET == 'noscarp':
+    elif CONF.DSET == 'noscarp':
         typs = ['npld', 'bu']
-    elif conf.DSET == 'all':
+    elif CONF.DSET == 'all':
         typs = ['bu', 'npld', 'scarp']
 
-    if os.path.exists(conf.TTS_PATH):
-        with open(conf.TTS_PATH) as f:
+    if os.path.exists(CONF.TTS_PATH):
+        with open(CONF.TTS_PATH) as f:
             TTS = json.load(f)
         trainIDs = TTS["trainIDs"]
         testIDs = TTS["testIDs"]
     else:
-        with open(conf.LABELS_JSON_PATH) as f:
+        with open(CONF.LABELS_JSON_PATH) as f:
             lblDict = json.load(f)
                
         testIDs = []
         trainIDs = []
         for typ in typs:
-            random.seed(conf.SEED)
-            Z = random.sample(lblDict['typ'][typ], conf.IM_PER_CAT)
-            random.seed(conf.SEED)
-            Y = random.sample(Z, int(conf.IM_PER_CAT * conf.TEST_SPLIT))
+            random.seed(CONF.SEED)
+            Z = random.sample(lblDict['typ'][typ], len(lblDict['typ']['scarp']))
+            random.seed(CONF.SEED)
+            Y = random.sample(Z, int(len(lblDict['typ']['scarp']) * CONF.TEST_SPLIT))
             X = list(set(Z).difference(set(Y)))
 
             testIDs.extend(Y)
             trainIDs.extend(X)
             
         TTS = {'trainIDs': trainIDs, 'testIDs': testIDs}
-        with open(conf.TTS_PATH, 'w') as tts:
+        with open(CONF.TTS_PATH, 'w') as tts:
             json.dump(TTS, tts)
 
     return trainIDs, testIDs
 
 
-def getDataloaders(conf):
-    trainIDs, testIDs = get_tts(conf)
+def getDataloaders(gpu_id):
+    trainIDs, testIDs = get_tts()
 
     train_transform = A.Compose(
         [
@@ -140,33 +142,33 @@ def getDataloaders(conf):
             # A.RandomGamma(p=0.8)
         ])
         
-    if conf.MODEL == 'AuxNet':
-        trainDS = AuxillaryDataset(imIDs=trainIDs, transforms=train_transform, conf=conf)
-        testDS = AuxillaryDataset(imIDs=testIDs, transforms=None, conf=conf)
-    elif conf.MODEL == 'DenseNet':
-        trainDS = ClassificationDataset(imIDs=trainIDs, transforms=train_transform, conf=conf)
-        testDS = ClassificationDataset(imIDs=testIDs, transforms=None, conf=conf)
-    elif conf.MODEL == 'UNet':
-        trainDS = SegmentationDataset(imIDs=trainIDs, transforms=train_transform, conf=conf)
-        testDS = SegmentationDataset(imIDs=testIDs, transforms=None, conf=conf)
+    if CONF.MODEL == 'AuxNet':
+        trainDS = AuxillaryDataset(imIDs=trainIDs, transforms=train_transform)
+        testDS = AuxillaryDataset(imIDs=testIDs, transforms=None)
+    elif CONF.MODEL == 'DenseNet':
+        trainDS = ClassificationDataset(imIDs=trainIDs, transforms=train_transform)
+        testDS = ClassificationDataset(imIDs=testIDs, transforms=None)
+    elif CONF.MODEL == 'UNet':
+        trainDS = SegmentationDataset(imIDs=trainIDs, transforms=train_transform)
+        testDS = SegmentationDataset(imIDs=testIDs, transforms=None)
 
-    if conf.GPU_ID == 0:
+    if gpu_id == 0:
         print(f"[INFO] found {len(trainDS)} examples in the training set...")
         print(f"[INFO] found {len(testDS)} examples in the test set...")
         print("------------------------------------------------------------")
 
         
-    trainSampler = DistributedSampler(trainDS, num_replicas=conf.GPU_COUNT, rank=conf.GPU_ID, 
-                                      shuffle=True, drop_last=True) if conf.GPU_COUNT > 1 else None
-    testSampler = DistributedSampler(testDS, num_replicas=conf.GPU_COUNT, rank=conf.GPU_ID, 
-                                     shuffle=False, drop_last=True) if conf.GPU_COUNT > 1 else None
+    trainSampler = DistributedSampler(trainDS, num_replicas=CONF.GPU_COUNT, rank=gpu_id, 
+                                      shuffle=True, drop_last=True) if CONF.GPU_COUNT > 1 else None
+    testSampler = DistributedSampler(testDS, num_replicas=CONF.GPU_COUNT, rank=gpu_id, 
+                                     shuffle=False, drop_last=True) if CONF.GPU_COUNT > 1 else None
 
     trainLoader = DataLoader(trainDS,
-        batch_size=conf.BATCH_SIZE, pin_memory=conf.PIN_MEMORY, shuffle = conf.GPU_COUNT < 2,
-        sampler = trainSampler, num_workers=conf.NUM_WORKERS)
+        batch_size=CONF.BATCH_SIZE, pin_memory=CONF.PIN_MEMORY, shuffle = CONF.GPU_COUNT < 2,
+        sampler = trainSampler, num_workers=CONF.NUM_WORKERS)
     testLoader = DataLoader(testDS,
-        batch_size=conf.BATCH_SIZE, pin_memory=conf.PIN_MEMORY, shuffle = False,
-        sampler = testSampler, num_workers=conf.NUM_WORKERS)
+        batch_size=CONF.BATCH_SIZE, pin_memory=CONF.PIN_MEMORY, shuffle = False,
+        sampler = testSampler, num_workers=CONF.NUM_WORKERS)
 
     return trainLoader, testLoader
 

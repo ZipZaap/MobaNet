@@ -8,19 +8,16 @@ class AttrDict(dict):
         self.__dict__ = self
 
 class Config():
-    def __init__(self):
+    def __init__(self, cpath):
         self.conf = AttrDict()
-        with open('configs/config.yaml') as file:
+        with open(cpath) as file:
             yaml_cfg = yaml.load(file, Loader=yaml.FullLoader)
         self.conf.update(yaml_cfg)
 
     def createFolders(self, lst: list) -> None:
         for path in lst:
             os.makedirs(path, exist_ok = True)
-
-    def printModelConfing(self):
-        print(f'[INFO] MODEL: {self.conf.MODEL_ID}, DATASET: {self.conf.DSET}, LOSS: {self.conf.LOSS}')
-
+        
     def getConfig(self):
         self.conf.MODEL_ID = f"{self.conf.MODEL}_{self.conf.TRAIN_MODE}"
 
@@ -31,7 +28,6 @@ class Config():
 
         self.conf.GPU_ID = 0 if torch.cuda.is_available() else "cpu"
         self.conf.PIN_MEMORY = True if torch.cuda.is_available() else False
-        self.conf.NUM_WORKERS = 1
         
         if self.conf.MODEL == 'AuxNet':
             if self.conf.TRAIN_MODE == 'encoder':
@@ -63,18 +59,15 @@ class Config():
 
         elif self.conf.MODEL == 'UNet':
             self.conf.TRAIN_MODE = 'default'
-            self.conf.DSET = 'scarp'
+            self.conf.DSET = 'all'
             self.conf.LOSS = 'segmentation'
             self.conf.SAVE_TRIG = 'test_loss'
 
-        # self.conf.MDL_PATH = f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}/{self.conf.MODEL_ID}_model.pth"
-        # self.conf.LOG_PATH = f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}/{self.conf.MODEL_ID}_log.json"
-        self.conf.MDL_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL_ID}_model.pth"
-        self.conf.LOG_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL_ID}_log.json"
+        self.conf.MDL_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL_ID}-model.pth"
+        self.conf.LOG_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL_ID}-log.json"
         self.conf.TTS_PATH = f"{self.conf.OUTPUT_PATH}/splits/tts_{self.conf.DSET}.json"
             
         self.createFolders([self.conf.OUTPUT_PATH, f'{self.conf.OUTPUT_PATH}/splits'])
-        self.printModelConfing()
 
         return self.conf
     

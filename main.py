@@ -1,29 +1,29 @@
-import os
-import torch
 from torch.optim import Adam
-import torch.multiprocessing as mp
 
 from utils.util import initModel
 from engines.AuxTrainer import AuxTrainer
 from engines.ClsTrainer import ClsTrainer
 from engines.SegTrainer import SegTrainer
 from model.loss import getTotalLoss
-from configs.config_parser import Config
 from data_loader.dataset import getDataloaders
 
+from configs import CONF
+import time
 
-def main(conf):
- 
-    trainLoader, testLoader = getDataloaders(conf)
-    model = initModel(conf)
+def main():
+    trainLoader, testLoader = getDataloaders(CONF.GPU_ID)
+    model = initModel(CONF.GPU_ID)
     lossFunc = getTotalLoss
-    optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=conf.INIT_LR, weight_decay=1e-5)
-    if conf.MODEL == 'AuxNet':
-        AuxTrainer(conf, model, lossFunc, optimizer, testLoader, trainLoader).train()
-    elif conf.MODEL == 'DenseNet':
-        ClsTrainer(conf, model, lossFunc, optimizer, testLoader, trainLoader).train()
+    optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.INIT_LR, weight_decay=1e-5)
+    if CONF.MODEL == 'AuxNet':
+        AuxTrainer(CONF.GPU_ID, model, lossFunc, optimizer, testLoader, trainLoader).train()
+    elif CONF.MODEL == 'DenseNet':
+        ClsTrainer(CONF.GPU_ID, model, lossFunc, optimizer, testLoader, trainLoader).train()
+    elif CONF.MODEL == 'UNet':
+        SegTrainer(CONF.GPU_ID, model, lossFunc, optimizer, testLoader, trainLoader).train()
     
 if __name__ == "__main__":
-    conf = Config().getConfig()
-    main(conf)
+    main()
   
+
+    

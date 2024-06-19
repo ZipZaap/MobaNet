@@ -1,6 +1,8 @@
 import torch 
 import torch.nn as nn
 
+from configs import CONF
+
 class ConvBlock(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
@@ -48,10 +50,10 @@ class Decoder(nn.Module):
 
     
 class UNet(nn.Module):
-    def __init__(self, conf):
+    def __init__(self):
         super().__init__()
-        self.cls = conf.NUM_CLASSES
-        self.chl = conf.NUM_CHANNELS
+        self.cls = CONF.NUM_CLASSES
+        self.chl = CONF.NUM_CHANNELS
 
         """ Encoder """
         self.enc1 = Encoder(self.chl, 16)

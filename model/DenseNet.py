@@ -1,6 +1,8 @@
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F
+
+from configs import CONF
     
 
 class Conv(nn.Module):
@@ -32,7 +34,7 @@ class FC(nn.Module):
         return x
     
 class DenseNet(nn.Module):
-    def __init__(self, conf):
+    def __init__(self):
         super().__init__()
         
         # Convolutional layers
