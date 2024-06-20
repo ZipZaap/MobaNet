@@ -6,16 +6,22 @@ from torch.nn import CrossEntropyLoss
 
 # After applying the sigmoid /predMask/ is normalized in the range [0,1].
 def compLoss(pred, true):
-    # predMask = pred.squeeze()
-    # predMask = torch.relu(torch.sign(torch.sigmoid(predMask)-0.5))
-    # trueMask = true.squeeze()
+    predMask = pred.squeeze()
+    predMask = torch.relu(torch.sign(torch.sigmoid(predMask)-0.5))
+    trueMask = true.squeeze()
     
     # DICE Loss
     # TP_SACRP = torch.sum(torch.multiply(trueMask, predMask))
     # TP_BACKG = torch.sum(torch.multiply(torch.ones_like(trueMask) - trueMask, torch.ones_like(predMask) - predMask))
     # FPFN = trueMask.nelement() + predMask.nelement()
     # DICEL = 1 - (2*(TP_SACRP+TP_BACKG) + 1)/(FPFN + 1)
-    
+
+    # DICE Loss
+    # TP_SACRP = torch.sum(torch.multiply(trueMask, predMask))
+    # TPFPFN = torch.sum(trueMask) + torch.sum(predMask)
+    # DICEL = 1 - (2*TP_SACRP + 1)/(TPFPFN + 1)
+
+
     # # IoU loss
     # Inter = torch.sum(torch.multiply(trueMask, predMask)) + 1 
     # Union = torch.sum(trueMask + predMask - torch.multiply(trueMask, predMask)) + 1

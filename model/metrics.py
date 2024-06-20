@@ -4,17 +4,17 @@ from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import torch
 
-# def getSegAccuracy(pred, true):
-#     predMask = pred.squeeze()
-#     predMask = torch.relu(torch.sign(torch.sigmoid(predMask)-0.5))
-#     trueMask = true.squeeze()
+def getSegAccuracy(pred, true):
+    predMask = pred.squeeze()
+    predMask = torch.relu(torch.sign(torch.sigmoid(predMask)-0.5))
+    trueMask = true.squeeze()
     
-#     TP_SACRP = torch.sum(torch.multiply(trueMask, predMask))
-#     TP_BACKG = torch.sum(torch.multiply(torch.ones_like(trueMask) - trueMask, torch.ones_like(predMask) - predMask))
-#     FPFN = trueMask.nelement() + predMask.nelement()
-#     DICE = (2*(TP_SACRP+TP_BACKG) + 1)/(FPFN + 1)
-#     DICE = DICE.cpu().detach().tolist()
-#     return DICE
+    TP_SACRP = torch.sum(torch.multiply(trueMask, predMask))
+    TP_BACKG = torch.sum(torch.multiply(torch.ones_like(trueMask) - trueMask, torch.ones_like(predMask) - predMask))
+    FPFN = trueMask.nelement() + predMask.nelement()
+    DICE = (2*(TP_SACRP+TP_BACKG) + 1)/(FPFN + 1)
+    DICE = DICE.cpu().detach().tolist()
+    return DICE
 
 # def getSegAccuracy(predMask, trueMask):
 #     predMask = torch.relu(torch.sign(torch.sigmoid(predMask)-0.5))
@@ -23,17 +23,17 @@ import torch
 #     RAND = RAND.cpu().detach().tolist()
 #     return RAND
 
-def getSegAccuracy(pred, true):
-    predMask = pred.squeeze()
-    predMask = torch.relu(torch.sign(torch.sigmoid(predMask)-0.5))
-    trueMask = true.squeeze()
+# def getSegAccuracy(pred, true):
+#     predMask = pred.squeeze()
+#     predMask = torch.relu(torch.sign(torch.sigmoid(predMask)-0.5))
+#     trueMask = true.squeeze()
 
-    TP_SACRP = torch.sum(torch.multiply(trueMask, predMask)) + 1
-    TPFPFN = torch.sum(trueMask) + torch.sum(predMask) + 1
-    DICE = (2*TP_SACRP)/TPFPFN
-    DICE = DICE.cpu().detach().tolist()
+#     TP_SACRP = torch.sum(torch.multiply(trueMask, predMask))
+#     TPFPFN = torch.sum(trueMask) + torch.sum(predMask)
+#     DICE = (2*TP_SACRP + 1)/(TPFPFN + 1)
+#     DICE = DICE.cpu().detach().tolist()
 
-    return DICE
+#     return DICE
 
 
 def getClsAccuracy(predCls, trueCls):
