@@ -91,5 +91,5 @@ class UNet(nn.Module):
     
         """ Segmenter """
         x = self.out2(x)
-
+        
         return x

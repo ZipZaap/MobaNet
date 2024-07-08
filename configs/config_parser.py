@@ -59,7 +59,7 @@ class Config():
 
         elif self.conf.MODEL == 'UNet':
             self.conf.TRAIN_MODE = 'default'
-            self.conf.DSET = 'all'
+            self.conf.DSET = 'scarp'
             self.conf.LOSS = 'segmentation'
             self.conf.SAVE_TRIG = 'test_loss'
 

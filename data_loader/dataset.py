@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from configs import CONF
+from utils.util import SDF
 
 class AuxillaryDataset(Dataset):
     def __init__(self, imIDs, transforms):
@@ -41,7 +42,8 @@ class AuxillaryDataset(Dataset):
         return (image, mask, typ)
     
 class SegmentationDataset(Dataset):
-    def __init__(self, imIDs, transforms):
+    def __init__(self, gpu_id, imIDs, transforms):
+        self.gpu_id = gpu_id
         self.imIDs = imIDs
         self.transforms = transforms
         self.impath = CONF.IMAGE_DATASET_PATH
@@ -60,9 +62,10 @@ class SegmentationDataset(Dataset):
             image = transformed['image']
             mask = transformed['mask']
 
-        image = torch.tensor(image/255).unsqueeze(0).to(torch.float32)
-        mask = torch.tensor(mask/255).unsqueeze(0).to(torch.float32)
-        return (image, mask)
+        image = torch.tensor(image/255).to(self.gpu_id).unsqueeze(0).to(torch.float32)
+        mask = torch.tensor(mask/255).to(self.gpu_id).unsqueeze(0).to(torch.float32)
+        sdm = SDF(mask)
+        return (image, mask, sdm)
 
 class ClassificationDataset(Dataset):
     def __init__(self, imIDs, transforms):

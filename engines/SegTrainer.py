@@ -55,8 +55,7 @@ class SegTrainer():
         runningLoss = 0
         totalSegAcc = 0
         with torch.no_grad() if mode == "test" else nullcontext():
-            for source, seg_true in loader:
-                source, seg_true = source.to(self.gpu_id), seg_true.to(self.gpu_id)
+            for source, seg_true, sdm in loader:
                 seg_pred = self.model(source)
                 loss = self.lossFunc(seg_pred, seg_true, CONF.LOSS)
         
@@ -95,7 +94,7 @@ class SegTrainer():
                 self.H["seg_test_acc"].append(testSegAcc)
                 self.H["seg_train_acc"].append(trainSegAcc)
 
-                self._save_model()
+                # self._save_model()
 
                 print(f"[GPU{self.gpu_id}] Epoch {epoch + 1}/{CONF.NUM_EPOCHS} | LR: {self.optimizer.defaults['lr']} | Train loss: {trainLoss:.4f} | Test loss: {testLoss:.4f} | Train Acc: {trainSegAcc:.4f} | Test Acc: {testSegAcc:.4f} | dt: {dt}s :: {etc}m")
                 print("-------------------------------------------------------------------------------------------------------------------------------------")
