@@ -212,6 +212,25 @@ class BinaryIoULoss(nn.Module):
         loss = loss/10
 
         return loss
+    
+class Loss:
+    def __init__(self, size, train_target: str = 'sdm'):
+        self.target = train_target
+        self.size = size
+        self.totalLoss = 0
+
+    def update(self, logits: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
+        self.loss = (BinaryDiceLoss(logits, gt_mask) + BinaryIoULoss(logits, gt_mask) + BCEWithLogitsLoss(logits, gt_mask))/3
+        self.totalLoss += self.loss
+        return self.loss
+
+    def compute_avg(self,length):
+        self.totalLoss = self.totalLoss/length
+        return self.totalLoss
+
+    def reset(self):
+        self.totalLoss = 0
+
 
 # def compLoss(pred, true):
      

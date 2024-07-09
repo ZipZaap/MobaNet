@@ -29,39 +29,11 @@ class Config():
         self.conf.GPU_ID = 0 if torch.cuda.is_available() else "cpu"
         self.conf.PIN_MEMORY = True if torch.cuda.is_available() else False
         
-        if self.conf.MODEL == 'AuxNet':
-            if self.conf.TRAIN_MODE == 'encoder':
-                self.conf.DSET = 'scarp'
-                self.conf.LOAD_PATH = None 
-                self.conf.TO_FREEZE = ['out1']
-                self.conf.LOSS = 'segmentation'
-                self.conf.SAVE_TRIG = 'test_loss'
 
-            elif self.conf.TRAIN_MODE == 'decoder':
-                self.conf.DSET  = 'scarp'
-                self.conf.LOAD_PATH = f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}/encoder_model.pth"
-                self.conf.TO_FREEZE = ['enc1', 'enc2', 'enc3', 'enc4', 'bneck', 'out1']
-                self.conf.LOSS = 'segmentation'
-                self.conf.SAVE_TRIG = 'test_loss'
-
-            elif self.conf.TRAIN_MODE == 'dense':
-                self.conf.DSET = 'all'
-                self.conf.LOAD_PATH = f"{self.conf.OUTPUT_PATH}/_train/{self.conf.RUN_NAME}/encoder_model.pth"
-                self.conf.TO_FREEZE = ['enc1', 'enc2', 'enc3', 'enc4', 'bneck', 'dec1', 'dec2', 'dec3', 'dec4', 'out2']
-                self.conf.LOSS = 'classification'
-                self.conf.SAVE_TRIG = 'test_loss'           
-        
-        elif self.conf.MODEL == 'DenseNet': 
-            self.conf.TRAIN_MODE = 'default'
-            self.conf.DSET = 'all'
-            self.conf.LOSS = 'classification'
-            self.conf.SAVE_TRIG = 'test_loss'
-
-        elif self.conf.MODEL == 'UNet':
-            self.conf.TRAIN_MODE = 'default'
-            self.conf.DSET = 'scarp'
-            self.conf.LOSS = 'segmentation'
-            self.conf.SAVE_TRIG = 'test_loss'
+        # self.conf.TRAIN_MODE = 'default'
+        # self.conf.DSET = 'scarp'
+        # self.conf.LOSS = 'segmentation'
+        # self.conf.SAVE_TRIG = 'test_loss'
 
         self.conf.MDL_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL_ID}-model.pth"
         self.conf.LOG_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL_ID}-log.json"

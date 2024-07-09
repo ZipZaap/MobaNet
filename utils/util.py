@@ -3,8 +3,6 @@ import time
 import math
 import numpy as np
 from typing import TYPE_CHECKING, List, Optional, Tuple
-from model.AuxilaryNet import AuxNet
-from model.DenseNet import DenseNet
 from model.UNet import UNet
 
 import torch
@@ -43,21 +41,7 @@ def ddp_cleanup():
     destroy_process_group()
 
 def initModel(gpu_id):
-    if CONF.MODEL == 'AuxNet':
-        model = AuxNet(CONF)
-        if CONF.LOAD_PATH is not None:
-            pretrained = torch.load(CONF.LOAD_PATH)['state_dict']
-            for name, child in model.named_children():
-                if name in CONF.TO_FREEZE:
-                    pretrained_dict = {key.replace(f'{name}.',''): value for key, value in pretrained.items() if name in key}
-                    child.load_state_dict(pretrained_dict)
-                    for param in child.parameters():
-                        param.requires_grad = False
-    elif CONF.MODEL == 'DenseNet':
-        model = DenseNet()
-    elif CONF.MODEL == 'UNet':
-        model = UNet()
-
+    model = UNet()
     if CONF.GPU_COUNT > 1:
         model = model.to('cuda')
         model = DDP(model, device_ids=[gpu_id], find_unused_parameters=True)
@@ -65,15 +49,6 @@ def initModel(gpu_id):
         model = model.to(gpu_id)
 
     return model
-
-def gather_metrics(gpu_id, metrics: list) -> list:
-    output = []
-    for metric in metrics:
-        AvgAccLst = [torch.zeros_like(torch.tensor(metric)).to(gpu_id) for _ in range(CONF.GPU_COUNT)]
-        dist.all_gather(AvgAccLst, torch.tensor(metric).to(gpu_id))
-        metric = np.round(torch.mean(torch.stack(AvgAccLst)).item(), 4)
-        output.append(metric)
-    return output
 
 def timer(epoch, ts = None):
     if ts is not None:

@@ -1,10 +1,7 @@
 from torch.optim import Adam
 import torch.multiprocessing as mp
 
-from engines.AuxTrainer import AuxTrainer
-from engines.ClsTrainer import ClsTrainer
 from engines.SegTrainer import SegTrainer
-from model.loss import getTotalLoss
 from data_loader.dataset import getDataloaders
 from utils.util import initModel, ddp_setup, ddp_cleanup
 
@@ -20,15 +17,8 @@ def main(gpu_id):
  
     trainLoader, testLoader = getDataloaders(gpu_id)
     model = initModel(gpu_id)
-    lossFunc = getTotalLoss
     optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.INIT_LR, weight_decay=1e-5)
-    
-    if CONF.MODEL == 'AuxNet':
-        AuxTrainer(gpu_id, model, lossFunc, optimizer, testLoader, trainLoader).train()
-    elif CONF.MODEL == 'DenseNet':
-        ClsTrainer(gpu_id, model, lossFunc, optimizer, testLoader, trainLoader).train()
-    elif CONF.MODEL == 'UNet':
-        SegTrainer(gpu_id, model, lossFunc, optimizer, testLoader, trainLoader).train()
+    SegTrainer(gpu_id, model, optimizer, testLoader, trainLoader).train()
 
     if CONF.GPU_COUNT > 1:
         ddp_cleanup()

@@ -3,8 +3,10 @@ from sklearn.preprocessing import OneHotEncoder
 
 import numpy as np
 import torch
+import torch.distributed as dist
 
 from utils.util import SDF
+from configs import CONF
 
 def getDiceAcc(pred_mask: torch.Tensor, gt_mask: torch.Tensor):
     Inter = torch.sum(torch.multiply(gt_mask, pred_mask))
@@ -44,10 +46,9 @@ def getAsdAcc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.Te
     return ASD
 
 class Accuracy:
-    def __init__(self, total, train_target: str = 'sdm', threshold: float = 0.5):
+    def __init__(self, train_target: str = 'sdm', threshold: float = 0.5):
         self.T = threshold
         self.target = train_target
-        self.total = total
 
         self.DSC = 0
         self.IoU = 0
@@ -67,18 +68,44 @@ class Accuracy:
         self.HD95 += getHD95Acc(pred_mask, pred_sdm, gt_mask, gt_sdm)
         self.ASD += getAsdAcc(pred_mask, pred_sdm, gt_mask, gt_sdm)
 
-    def compute(self):
-        self.DSC = self.DSC/self.total
-        self.IoU = self.IoU/self.total
-        self.HD95 = self.HD95/self.total
-        self.ASD = self.ASD/self.total
-        return (self.DSC, self.IoU, self.HD95, self.ASD)
+    def compute_avg(self, gpu_id, length):
+        self.DSC = self.DSC/length
+        self.IoU = self.IoU/length
+        self.HD95 = self.HD95/length
+        self.ASD = self.ASD/length
+        metrics = {'dsc': self.DSC, 'iou': self.IoU, 'hd95': self.HD95, 'asd': self.ASD}
+
+        if CONF.GPU_COUNT > 1:
+            return gather_metrics(gpu_id, metrics)
+        else:
+            return metrics
 
     def reset(self):
         self.DSC = 0
         self.IoU = 0
         self.HD95 = 0
         self.ASD = 0
+
+def gather_metrics(gpu_id, metrics: dict) -> dict:
+    for metric, value in metrics:
+        AvgAccLst = [torch.zeros_like(torch.tensor(value)).to(gpu_id) for _ in range(CONF.GPU_COUNT)]
+        dist.all_gather(AvgAccLst, torch.tensor(value).to(gpu_id))
+        value = np.round(torch.mean(torch.stack(AvgAccLst)).item(), 4)
+        metrics[metric] = value
+    return metrics
+
+# def gather_metrics(gpu_id, metrics: list) -> list:
+#     output = []
+#     for metric in metrics:
+#         AvgAccLst = [torch.zeros_like(torch.tensor(metric)).to(gpu_id) for _ in range(CONF.GPU_COUNT)]
+#         dist.all_gather(AvgAccLst, torch.tensor(metric).to(gpu_id))
+#         metric = np.round(torch.mean(torch.stack(AvgAccLst)).item(), 4)
+#         output.append(metric)
+#     return output
+
+
+
+
 
 
 
