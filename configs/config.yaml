@@ -9,6 +9,8 @@ NUM_CHANNELS: 1
 
 # MODEL PARAMETERS
 MODEL: 'UNet'
+DSET: 'scarp'
+LOSS: 'BinDICE' # BinC1 | SdmDiCE | WeightedBCL | SdmC1 | SdmC2 | SdmC3
 NUM_CLASSES: 1
 MODEL_DEPTH: 4
 INIT_LR: 0.0001
@@ -26,6 +28,6 @@ DATASET_PATH: 'D:/DataStorage/SemSeg/train'
 OUTPUT_PATH: 'saved'
 
 # DDP paramenets
-GPU_COUNT: 1
+NUM_GPU: 1
 MASTER_ADDR: 'localhost'
 MASTER_PORT: '12355'
