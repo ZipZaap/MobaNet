@@ -19,7 +19,7 @@ class Config():
             os.makedirs(path, exist_ok = True)
         
     def getConfig(self):
-        # self.conf.MODEL_ID = f"{self.conf.MODEL}_{self.conf.TRAIN_MODE}"
+        self.conf.RUN_ID = f"{self.conf.MODEL}_{self.conf.LOSS}"
 
         self.conf.DATASET_PATH = f'{self.conf.DATASET_PATH}/{self.conf.INPUT_IMAGE_SIZE}'
         self.conf.IMAGE_DATASET_PATH = f'{self.conf.DATASET_PATH}/images'
@@ -29,12 +29,6 @@ class Config():
 
         self.conf.DEFAULT_DEVICE = 'cuda:0' if torch.cuda.is_available() else "cpu"
         self.conf.PIN_MEMORY = True if torch.cuda.is_available() else False
-        
-
-        # self.conf.TRAIN_MODE = 'default'
-        # self.conf.DSET = 'scarp'
-        # self.conf.LOSS = 'segmentation'
-        # self.conf.SAVE_TRIG = 'test_loss'
 
         self.conf.MDL_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL}-model.pth"
         self.conf.LOG_PATH = f"{self.conf.OUTPUT_PATH}/{self.conf.MODEL}-log.json"

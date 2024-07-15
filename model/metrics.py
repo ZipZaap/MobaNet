@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
-from utils.util import SDF
+from utils.util import SDF, compute_sobel_edges
 from configs import CONF
 
 def getDiceAcc(pred_mask: torch.Tensor, gt_mask: torch.Tensor):
@@ -19,20 +19,15 @@ def getJaccardAcc(pred_mask: torch.Tensor, gt_mask: torch.Tensor):
     Inter = torch.sum(torch.multiply(gt_mask, pred_mask)) + 1 
     Union = torch.sum(gt_mask + pred_mask - torch.multiply(gt_mask, pred_mask)) + 1
     JCC = Inter/Union
-
-    # JCC = 0
-    # IoU = Inter/Union
-    # for thresh in np.arange(0.5, 1,  0.05):
-    #     if IoU > thresh:
-    #         JCC = JCC + IoU
-    # JCC = JCC/10
-    # JCC = JCC.cpu().detach().tolist()
     return JCC 
 
 def getHD95Acc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
-    dP = torch.abs(torch.multiply(gt_sdm, pred_mask))
+    dP = compute_sobel_edges(pred_mask)
+    dP = torch.abs(torch.multiply(gt_sdm, dP))
     dP = torch.where(dP == 0, float('nan'), dP)
-    dG = torch.abs(torch.multiply(pred_sdm, gt_mask))
+
+    dG = compute_sobel_edges(gt_mask)
+    dG = torch.abs(torch.multiply(pred_sdm, dG))
     dG = torch.where(dG == 0, float('nan'), dG)
 
     dPdG = torch.cat((dP, dG), dim=0).view(dP.shape[0]*2, 1, -1)
@@ -41,9 +36,12 @@ def getHD95Acc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.T
     return HD95
 
 def getAsdAcc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
-    dP = torch.abs(torch.multiply(gt_sdm, pred_mask))
+    dP = compute_sobel_edges(pred_mask)
+    dP = torch.abs(torch.multiply(gt_sdm, dP))
     dP = torch.where(dP == 0, float('nan'), dP)
-    dG = torch.abs(torch.multiply(pred_sdm, gt_mask))
+
+    dG = compute_sobel_edges(gt_mask)
+    dG = torch.abs(torch.multiply(pred_sdm, dG))
     dG = torch.where(dG == 0, float('nan'), dG)
 
     dPdG = torch.cat((dP, dG), dim=0).view(dP.shape[0]*2, 1, -1)
@@ -51,8 +49,23 @@ def getAsdAcc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.Te
     # ASD = ASD.cpu().detach().tolist()
     return ASD
 
+def getBoundaryAcc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
+    dP = compute_sobel_edges(pred_mask)
+    dP = torch.abs(torch.multiply(gt_sdm, dP))
+    dP = torch.where(dP == 0, float('nan'), dP)
+
+    dG = compute_sobel_edges(gt_mask)
+    dG = torch.abs(torch.multiply(pred_sdm, dG))
+    dG = torch.where(dG == 0, float('nan'), dG)
+
+    dPdG = torch.cat((dP, dG), dim=0).view(dP.shape[0]*2, 1, -1)
+
+    HD95 = torch.nanmean(torch.nanquantile(dPdG, 0.95, dim=2))
+    ASD = torch.nanmean(torch.nanmean(dPdG, dim=2))
+    return ASD, HD95
+
 class Accuracy:
-    def __init__(self, train_target: str = 'sdm', threshold: float = 0.5):
+    def __init__(self, train_target: str = 'sdm', threshold: float = CONF.THRESHOLD):
         self.T = threshold
         self.target = train_target
 
@@ -72,10 +85,9 @@ class Accuracy:
 
             self.DSC += getDiceAcc(pred_mask, gt_mask)
             self.IoU += getJaccardAcc(pred_mask, gt_mask)
-            hd95 = getHD95Acc(pred_mask, pred_sdm, gt_mask, gt_sdm)
-            self.HD95 +=  hd95
-            self.ASD += getAsdAcc(pred_mask, pred_sdm, gt_mask, gt_sdm)
-        return hd95
+            asd, hd95 = getBoundaryAcc(pred_mask, pred_sdm, gt_mask, gt_sdm)
+            self.HD95 += hd95
+            self.ASD += asd
 
     def compute_avg(self, length: int):
         self.DSC = self.DSC/length

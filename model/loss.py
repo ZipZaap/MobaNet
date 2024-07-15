@@ -214,9 +214,8 @@ class BinaryIoULoss(nn.Module):
         return loss
     
 class Loss:
-    def __init__(self, size, ltype = 'BinDICE'):
+    def __init__(self, ltype = 'BinDICE'):
         self.ltype = ltype
-        self.size = size
         self.totalLoss = 0
 
     def update(self, logits: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
@@ -225,11 +224,11 @@ class Loss:
         elif self.ltype == 'BinC1':
             self.loss = (BinaryDiceLoss(logits, gt_mask) + 2*BinaryIoULoss(logits, gt_mask) + 2*BCEWithLogitsLoss(logits, gt_mask))/5
         elif self.ltype == 'SdmDICE':
-            self.loss = SDMDiceLoss(logits, gt_mask)
+            self.loss = SDMDiceLoss()(logits, gt_mask)
         elif self.ltype == 'WeightedBCL':
             self.loss = WeightedBCELoss(logits, gt_sdm, gt_mask)
         elif self.ltype == 'SdmC1':
-            self.loss = (2*SDMDiceLoss(logits, gt_mask) + (SDMMAELoss(logits, gt_sdm) + SDMProductLoss(logits, gt_sdm)))/4
+            self.loss = SDMDiceLoss()(logits, gt_mask) + 10*(SDMMAELoss()(logits, gt_sdm) + SDMProductLoss()(logits, gt_sdm))
         elif self.ltype == 'SdmC2':
             self.loss = SDMDiceLoss(logits, gt_mask) + SDMMAELoss(logits, gt_sdm) + SDMQuadLoss(logits, gt_mask)
         elif self.ltype == 'SdmC3':
@@ -238,7 +237,7 @@ class Loss:
         self.totalLoss += self.loss
         return self.loss
 
-    def compute_avg(self,length):
+    def compute_avg(self, length):
         self.totalLoss = self.totalLoss/length
         return self.totalLoss
 

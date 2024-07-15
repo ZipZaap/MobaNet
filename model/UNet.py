@@ -25,7 +25,7 @@ class Encoder(nn.Module):
         super().__init__()
         self.conv = ConvBlock(in_c, out_c)
         self.pool = nn.MaxPool2d((2, 2))
-        self.drop = nn.Dropout(0.1)
+        self.drop = nn.Dropout(CONF.DROPOUT)
 
     def forward(self, inputs):
         skip = self.conv(inputs)
@@ -39,7 +39,7 @@ class Decoder(nn.Module):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_c, out_c, kernel_size=2, stride=2, padding=0)
         self.conv = ConvBlock(out_c+out_c, out_c)
-        self.drop = nn.Dropout(0.1)
+        self.drop = nn.Dropout(CONF.DROPOUT)
 
     def forward(self, inputs, skip):
         x = self.up(inputs)
@@ -52,11 +52,9 @@ class Decoder(nn.Module):
 class UNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.cls = CONF.NUM_CLASSES
-        self.chl = CONF.NUM_CHANNELS
 
         """ Encoder """
-        self.enc1 = Encoder(self.chl, 16)
+        self.enc1 = Encoder(CONF.NUM_CHANNELS, 16)
         self.enc2 = Encoder(16, 32)
         self.enc3 = Encoder(32, 64)
         self.enc4 = Encoder(64, 128)
@@ -71,7 +69,7 @@ class UNet(nn.Module):
         self.dec4 = Decoder(32, 16)
         
         """ Segmenter"""
-        self.out2 = nn.Conv2d(16, self.cls, kernel_size=1, padding=0)
+        self.out2 = nn.Conv2d(16, CONF.NUM_CLASSES, kernel_size=1, padding=0)
 
     def forward(self, inputs):
         """ Encoder """

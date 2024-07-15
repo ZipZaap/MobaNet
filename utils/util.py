@@ -82,10 +82,10 @@ def compute_sobel_edges(mask):
 
     grad_x = F.conv2d(F.pad(mask, (1,1,1,1), 'reflect'), sobel_x, padding=0)
     grad_y = F.conv2d(F.pad(mask, (1,1,1,1), 'reflect'), sobel_y, padding=0)
-    grad_magnitude = torch.sqrt(grad_x ** 2 + grad_y ** 2)
-    grad_magnitude = torch.multiply(grad_magnitude, mask)
-    grad_magnitude = torch.where(grad_magnitude != 0, 1.0, 0.0)
-    return grad_magnitude
+    sobel_edges = torch.sqrt(grad_x ** 2 + grad_y ** 2)
+    sobel_edges = torch.multiply(sobel_edges, mask)
+    sobel_edges = torch.where(sobel_edges != 0, 1.0, 0.0)
+    return sobel_edges
 
 def create_meshgrid(
     height: int,

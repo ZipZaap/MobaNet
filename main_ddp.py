@@ -1,3 +1,4 @@
+print('importing libs')
 from torch.optim import Adam
 import torch.multiprocessing as mp
 
@@ -7,6 +8,9 @@ from dataset.data_prepare import generate_sdms, get_tts
 from utils.util import initModel, ddp_setup, ddp_cleanup
 
 from configs import CONF
+
+import wandb
+
 
 # os.environ['NCCL_P2P_DISABLE'] = '1'
 
@@ -18,13 +22,14 @@ def main(gpu_id, imIDs):
  
     loaders = getDataloaders(gpu_id, imIDs)
     model = initModel(gpu_id)
-    optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.INIT_LR, weight_decay=1e-5)
+    optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.INIT_LR, weight_decay=CONF.L2_DECAY)
     SegTrainer(gpu_id, model, optimizer, loaders).train()
 
     if CONF.NUM_GPU > 1:
         ddp_cleanup()
     
 if __name__ == "__main__":
+    wandb.login()
     imIDs = get_tts()
     generate_sdms(imIDs)
 

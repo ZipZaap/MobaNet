@@ -6,6 +6,7 @@ from model.loss import Loss
 from utils.util import timer
 from utils.util import SDF
 from configs import CONF
+import wandb
 
 class SegTrainer():
     def __init__(self, gpu_id, model, optimizer, loaders):
@@ -45,7 +46,7 @@ class SegTrainer():
     def _run_epoch(self, loader, mode):
         self.model.train() if mode == "train" else self.model.eval()
       
-        acc = Accuracy('bin')
+        acc = Accuracy(CONF.ACC)
         lss = Loss(CONF.LOSS)
         with torch.no_grad() if mode == "test" else nullcontext():
             for source, gt_mask, gt_sdm in loader:
@@ -67,7 +68,12 @@ class SegTrainer():
     
    
     def train(self):
+        wandb.init(project=CONF.MODEL,
+            name=CONF.RUN_NAME, 
+            config=CONF)
+
         for epoch in range(CONF.NUM_EPOCHS):
+  
             ts = timer(epoch)
             
             self.trainLoader.sampler.set_epoch(epoch) if CONF.NUM_GPU > 1 else nullcontext()
@@ -83,3 +89,7 @@ class SegTrainer():
                 print(f"Train -> loss: {trainLoss:.4f} | DSC: {trainSegAcc['dsc']:.4f} | JCC: {trainSegAcc['iou']:.4f} | HD95: {trainSegAcc['hd95']:.4f} | ASD: {trainSegAcc['asd']:.4f} |")
                 print(f"Test  -> loss: {testLoss:.4f} | DSC: {testSegAcc['dsc']:.4f} | JCC: {testSegAcc['iou']:.4f} | HD95: {testSegAcc['hd95']:.4f} | ASD: {testSegAcc['asd']:.4f} |")
                 print("--------------------------------------------------------------------------------")
+
+                wandb.log({'loss/train': trainLoss, 'loss/test': testLoss, 'DSC/train': trainSegAcc['dsc'], 'DSC/test': testSegAcc['dsc']})
+        
+        wandb.finish()

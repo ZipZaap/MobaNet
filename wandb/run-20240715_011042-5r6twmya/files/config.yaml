@@ -1,0 +1,126 @@
+wandb_version: 1
+
+RUN_NAME:
+  desc: null
+  value: BinDICE
+INPUT_IMAGE_SIZE:
+  desc: null
+  value: 512
+NUM_CHANNELS:
+  desc: null
+  value: 1
+MODEL:
+  desc: null
+  value: UNet
+DSET:
+  desc: null
+  value: scarp
+LOSS:
+  desc: null
+  value: BinDICE
+ACC:
+  desc: null
+  value: bin
+NUM_CLASSES:
+  desc: null
+  value: 1
+MODEL_DEPTH:
+  desc: null
+  value: 4
+INIT_LR:
+  desc: null
+  value: 0.0001
+NUM_EPOCHS:
+  desc: null
+  value: 150
+BATCH_SIZE:
+  desc: null
+  value: 16
+THRESHOLD:
+  desc: null
+  value: 0.5
+NUM_WORKERS:
+  desc: null
+  value: 1
+TEST_SPLIT:
+  desc: null
+  value: 0.1
+SEED:
+  desc: null
+  value: 42
+DATASET_PATH:
+  desc: null
+  value: D:/DataStorage/SemSeg/train/512
+OUTPUT_PATH:
+  desc: null
+  value: saved
+NUM_GPU:
+  desc: null
+  value: 1
+MASTER_ADDR:
+  desc: null
+  value: localhost
+MASTER_PORT:
+  desc: null
+  value: '12355'
+IMAGE_DATASET_PATH:
+  desc: null
+  value: D:/DataStorage/SemSeg/train/512/images
+MASK_DATASET_PATH:
+  desc: null
+  value: D:/DataStorage/SemSeg/train/512/masks
+SDM_DATASET_PATH:
+  desc: null
+  value: D:/DataStorage/SemSeg/train/512/sdms
+LABELS_JSON_PATH:
+  desc: null
+  value: D:/DataStorage/SemSeg/train/512/labels.json
+DEFAULT_DEVICE:
+  desc: null
+  value: cuda:0
+PIN_MEMORY:
+  desc: null
+  value: true
+MDL_PATH:
+  desc: null
+  value: saved/UNet-model.pth
+LOG_PATH:
+  desc: null
+  value: saved/UNet-log.json
+TTS_PATH:
+  desc: null
+  value: saved/splits/tts_scarp.json
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.18
+    cli_version: 0.16.6
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1720998642.0
+    t:
+      1:
+      - 1
+      - 5
+      - 53
+      - 54
+      - 55
+      - 80
+      2:
+      - 1
+      - 5
+      - 53
+      - 54
+      - 55
+      - 80
+      3:
+      - 13
+      - 16
+      - 23
+      4: 3.9.18
+      5: 0.16.6
+      8:
+      - 3
+      - 5
+      13: windows-amd64
