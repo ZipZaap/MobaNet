@@ -7,15 +7,13 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from configs import CONF
-
 class SegmentationDataset(Dataset):
-    def __init__(self, imIDs, transforms):
+    def __init__(self, config, imIDs, transforms):
         self.imIDs = imIDs
         self.transforms = transforms
-        self.impath = CONF.IMAGE_DATASET_PATH
-        self.maskpath = CONF.MASK_DATASET_PATH
-        self.sdmpath = CONF.SDM_DATASET_PATH
+        self.impath = config.IMAGE_DATASET_PATH
+        self.maskpath = config.MASK_DATASET_PATH
+        self.sdmpath = config.SDM_DATASET_PATH
 
     def __len__(self):
         return len(self.imIDs)
@@ -37,7 +35,7 @@ class SegmentationDataset(Dataset):
         sdm = torch.tensor(sdm).unsqueeze(0).to(torch.float32)
         return (image, mask, sdm)
 
-def getDataloaders(gpu_id, imIDs):
+def getDataloaders(config, gpu_id, imIDs):
     trainIDs, testIDs = imIDs
 
     train_transform = A.Compose(
@@ -49,25 +47,21 @@ def getDataloaders(gpu_id, imIDs):
             # A.RandomGamma(p=0.8)
         ], additional_targets={'mask': 'mask', 'sdm': 'mask'})
         
-    trainDS = SegmentationDataset(imIDs=trainIDs, transforms=train_transform)
-    testDS = SegmentationDataset(imIDs=testIDs, transforms=None)
+    trainDS = SegmentationDataset(config = config, imIDs=trainIDs, transforms=train_transform)
+    testDS = SegmentationDataset(config = config, imIDs=testIDs, transforms=None)
 
-    if gpu_id == 0 or CONF.NUM_GPU <=1:
-        print(f"[INFO] found {len(trainDS)} examples in the training set...")
-        print(f"[INFO] found {len(testDS)} examples in the test set...")
-        print("--------------------------------------------------------------------------------")
-
-    trainSampler = DistributedSampler(trainDS, num_replicas=CONF.NUM_GPU, rank=gpu_id, 
-                                      shuffle=True, drop_last=True) if CONF.NUM_GPU > 1 else None
-    testSampler = DistributedSampler(testDS, num_replicas=CONF.NUM_GPU, rank=gpu_id, 
-                                     shuffle=False, drop_last=True) if CONF.NUM_GPU > 1 else None
-
+    trainSampler = DistributedSampler(trainDS, num_replicas=config.NUM_GPU, rank=gpu_id, 
+                                      shuffle=True, drop_last=True) if config.NUM_GPU > 1 else None
+    testSampler = DistributedSampler(testDS, num_replicas=config.NUM_GPU, rank=gpu_id, 
+                                     shuffle=False, drop_last=True) if config.NUM_GPU > 1 else None
+    
     trainLoader = DataLoader(trainDS,
-        batch_size=CONF.BATCH_SIZE, pin_memory=CONF.PIN_MEMORY, shuffle = CONF.NUM_GPU <= 1,
-        sampler = trainSampler, num_workers=CONF.NUM_WORKERS)
+        batch_size=config.BATCH_SIZE, pin_memory=config.PIN_MEMORY, shuffle = config.NUM_GPU <= 1,
+        sampler = trainSampler, num_workers=config.NUM_WORKERS, persistent_workers=True)
     testLoader = DataLoader(testDS,
-        batch_size=CONF.BATCH_SIZE, pin_memory=CONF.PIN_MEMORY, shuffle = False,
-        sampler = testSampler, num_workers=CONF.NUM_WORKERS)
+        batch_size=config.BATCH_SIZE, pin_memory=config.PIN_MEMORY, shuffle = False,
+        sampler = testSampler, num_workers=config.NUM_WORKERS, persistent_workers=True)
 
     return trainLoader, testLoader
+
 

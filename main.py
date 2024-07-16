@@ -1,29 +1,23 @@
-from torch.optim import Adam
-
-from utils.util import initModel
-from engines.AuxTrainer import AuxTrainer
-from engines.ClsTrainer import ClsTrainer
-from engines.SegTrainer import SegTrainer
-from model.loss import getTotalLoss
-from data_loader.dataset import getDataloaders
-
-from configs import CONF
-import time
-
-def main():
-    trainLoader, testLoader = getDataloaders(CONF.GPU_ID)
-    model = initModel(CONF.GPU_ID)
-    lossFunc = getTotalLoss
-    optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.INIT_LR, weight_decay=1e-5)
-    if CONF.MODEL == 'AuxNet':
-        AuxTrainer(CONF.GPU_ID, model, lossFunc, optimizer, testLoader, trainLoader).train()
-    elif CONF.MODEL == 'DenseNet':
-        ClsTrainer(CONF.GPU_ID, model, lossFunc, optimizer, testLoader, trainLoader).train()
-    elif CONF.MODEL == 'UNet':
-        SegTrainer(CONF.GPU_ID, model, lossFunc, optimizer, testLoader, trainLoader).train()
-    
 if __name__ == "__main__":
-    main()
+    from torch.optim import Adam
+
+    from engines.SegTrainer import SegTrainer
+    from dataset.data_loaders import getDataloaders
+    from dataset.data_prepare import generate_sdms, get_tts
+    from utils.util import initModel
+    from configs import CONF
+
+    def main(gpu_id, imIDs):
+        print(f'[INFO] MODEL: {CONF.MODEL}, DATASET: {CONF.DSET}, LOSS: {CONF.LOSS}') 
+        loaders = getDataloaders(CONF, gpu_id, imIDs)
+        model = initModel(gpu_id)
+        optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.INIT_LR, weight_decay=CONF.L2_DECAY)
+        SegTrainer(gpu_id, model, optimizer, loaders).train()
+
+    imIDs = get_tts()
+    generate_sdms(imIDs)
+    print(f'[INFO] Running in non-distributed mode on {CONF.DEFAULT_DEVICE}')
+    main(CONF.DEFAULT_DEVICE, imIDs)
   
 
     

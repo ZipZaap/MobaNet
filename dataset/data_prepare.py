@@ -47,6 +47,9 @@ def get_tts():
         with open(CONF.TTS_PATH, 'w') as tts:
             json.dump(TTS, tts)
 
+    print(f"[INFO] found {len(trainIDs)} examples in the training set...")
+    print(f"[INFO] found {len(testIDs)} examples in the test set...")
+
     return (trainIDs, testIDs)
 
 def save_sdms(imIDs, sdms):

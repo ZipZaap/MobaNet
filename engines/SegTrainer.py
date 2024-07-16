@@ -1,12 +1,11 @@
-import json
+import wandb
 import torch
 from contextlib import nullcontext
+
 from model.metrics import Accuracy
 from model.loss import Loss
 from utils.util import timer
-from utils.util import SDF
 from configs import CONF
-import wandb
 
 class SegTrainer():
     def __init__(self, gpu_id, model, optimizer, loaders):
@@ -15,45 +14,18 @@ class SegTrainer():
         self.optimizer = optimizer
         self.trainLoader, self.testLoader = loaders
         self.minLoss = 1
-        
-    # def _save_model(self):
-    #     with open(CONF.LOG_PATH, 'w') as tts:
-    #         json.dump(self.H, tts)
-       
-    #     if self.H[CONF.SAVE_TRIG][-1] < self.minLoss:
-    #         self.minLoss = self.H[CONF.SAVE_TRIG][-1]
-            
-    #         best = {
-    #             'INFO':{
-    #                 'MODE': CONF.TRAIN_MODE, 
-    #                 'DATASET': CONF.DSET, 
-    #                 'LOSS': CONF.LOSS,
-    #                 'ACC_METRIC': CONF.SAVE_TRIG
-    #             },
-    #             'METRICS':{
-    #                 'epoch' : self.epoch,
-    #                 'train_loss': self.H['train_loss'][-1],
-    #                 'test_loss': self.H['test_loss'][-1],
-    #                 'seg_test_acc': self.H['seg_test_acc'][-1],
-    #                 'seg_train_acc': self.H['seg_train_acc'][-1],
-    #             },
-    #             'state_dict': self.model.state_dict(),
-    #             'optimizer': self.optimizer.state_dict()
-    #         }
-            
-    #         torch.save(best, CONF.MDL_PATH)
     
-    def _run_epoch(self, loader, mode):
+    def _run_epoch(self, epoch, loader, mode):
         self.model.train() if mode == "train" else self.model.eval()
       
-        acc = Accuracy(CONF.ACC)
-        lss = Loss(CONF.LOSS)
+        acc = Accuracy()
+        lss = Loss()
         with torch.no_grad() if mode == "test" else nullcontext():
             for source, gt_mask, gt_sdm in loader:
                 source, gt_mask, gt_sdm = source.to(self.gpu_id), gt_mask.to(self.gpu_id), gt_sdm.to(self.gpu_id)
 
                 pred_mask = self.model(source)
-                loss = lss.update(pred_mask, gt_mask, gt_sdm)
+                loss = lss.update(epoch, pred_mask, gt_mask, gt_sdm)
                 acc.update(pred_mask, gt_mask, gt_sdm)
         
                 if mode == "train":
@@ -69,7 +41,7 @@ class SegTrainer():
    
     def train(self):
         wandb.init(project=CONF.MODEL,
-            name=CONF.RUN_NAME, 
+            name=CONF.RUN_ID, 
             config=CONF)
 
         for epoch in range(CONF.NUM_EPOCHS):
@@ -78,8 +50,8 @@ class SegTrainer():
             
             self.trainLoader.sampler.set_epoch(epoch) if CONF.NUM_GPU > 1 else nullcontext()
 
-            trainLoss, trainSegAcc = self._run_epoch(self.trainLoader, "train")
-            testLoss, testSegAcc = self._run_epoch(self.testLoader, "test")
+            trainLoss, trainSegAcc = self._run_epoch(epoch, self.trainLoader, "train")
+            testLoss, testSegAcc = self._run_epoch(epoch, self.testLoader, "test")
     
             dt, etc = timer(epoch, ts)
             
@@ -90,6 +62,10 @@ class SegTrainer():
                 print(f"Test  -> loss: {testLoss:.4f} | DSC: {testSegAcc['dsc']:.4f} | JCC: {testSegAcc['iou']:.4f} | HD95: {testSegAcc['hd95']:.4f} | ASD: {testSegAcc['asd']:.4f} |")
                 print("--------------------------------------------------------------------------------")
 
-                wandb.log({'loss/train': trainLoss, 'loss/test': testLoss, 'DSC/train': trainSegAcc['dsc'], 'DSC/test': testSegAcc['dsc']})
+                wandb.log({'loss/train': trainLoss, 'loss/test': testLoss}, step = epoch+1)
+                wandb.log({'metrics/DSC-train': trainSegAcc['dsc'], 'metrics/DSC-test': testSegAcc['dsc']}, step = epoch+1)
+                wandb.log({'metrics/JCC-train': trainSegAcc['iou'], 'metrics/JCC-test': testSegAcc['iou']}, step = epoch+1)
+                wandb.log({'metrics/HD95-train': trainSegAcc['hd95'], 'metrics/HD95-test': testSegAcc['hd95']}, step = epoch+1)
+                wandb.log({'metrics/ASD-train': trainSegAcc['asd'], 'metrics/ASD-test': testSegAcc['asd']}, step = epoch+1)
         
         wandb.finish()

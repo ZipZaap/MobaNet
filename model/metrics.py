@@ -65,9 +65,9 @@ def getBoundaryAcc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: tor
     return ASD, HD95
 
 class Accuracy:
-    def __init__(self, train_target: str = 'sdm', threshold: float = CONF.THRESHOLD):
+    def __init__(self, sdm_logits: bool = CONF.SDM_LOGITS, threshold: float = CONF.THRESHOLD):
         self.T = threshold
-        self.target = train_target
+        self.sdm_logits = sdm_logits
 
         self.DSC = 0
         self.IoU = 0
@@ -76,10 +76,10 @@ class Accuracy:
 
     def update(self, logits: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
         with torch.no_grad():
-            if self.target == 'sdm':
+            if self.sdm_logits == True:
                 pred_mask = torch.relu(torch.sign(torch.sigmoid(-1*logits)-self.T))
                 pred_sdm = torch.tanh(logits)
-            elif self.target == 'bin':
+            else:
                 pred_mask = torch.relu(torch.sign(torch.sigmoid(logits)-self.T))
                 pred_sdm = SDF(pred_mask, kernel_size = 7)
 

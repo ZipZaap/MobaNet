@@ -5,8 +5,34 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import BCEWithLogitsLoss
 
+from configs import CONF
+
+# # SDM LOSSES
+# class WeightedBCELoss(nn.Module):
+#     """
+#     TYPE: pixel-lvl loss
+
+#     The gound truth SDM is inverted an normalized in range [1;2].
+#     It is then used to weight the BCEWithLogitsLoss() that calculates the pixel-wise 
+#     difference between the logits and the ground truth binary mask.
+
+#     Args:
+#         logits (torch.Tensor) - raw outputs from the last layer of UNet
+#         gt_sdm (torch.Tensor) - ground truth Surface Distance Map
+#         gt_mask (torch.Tensor) - ground truth binary segmentation mask
+#     Returns:
+#         loss (torch.Tensor) - scalar loss value
+#     """
+#     def __init__(self):
+#         super().__init__()
+
+#     def forward(self, logits: torch.Tensor, gt_sdm: torch.Tensor, gt_mask: torch.Tensor):
+#         gt_sdm = 2 - torch.abs(gt_sdm)
+#         loss = BCEWithLogitsLoss(weight = gt_sdm)(logits, gt_mask)
+#         return loss
+    
 # SDM LOSSES
-class WeightedBCELoss(nn.Module):
+class BCELoss(nn.Module):
     """
     TYPE: pixel-lvl loss
 
@@ -24,11 +50,18 @@ class WeightedBCELoss(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, logits: torch.Tensor, gt_sdm: torch.Tensor, gt_mask: torch.Tensor, k: int = 1):
-        gt_sdm = 2 - torch.abs(gt_sdm)
-        loss = BCEWithLogitsLoss(weight = gt_sdm)(-k*logits, gt_mask)
+    def forward(self, logits: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor = None):
+        if CONF.SDM_LOGITS:
+            pred_sdm = torch.tanh(logits)
+            loss = BCELoss()(pred_sdm, gt_sdm)
+        else:
+            if gt_sdm == None:
+                loss = BCEWithLogitsLoss()(logits, gt_mask)
+            else:
+                gt_sdm = 2 - torch.abs(gt_sdm)
+                loss = BCEWithLogitsLoss(weight = gt_sdm)(logits, gt_mask)
         return loss
-
+    
 
 class SDMDiceLoss(nn.Module):
     """
@@ -214,26 +247,32 @@ class BinaryIoULoss(nn.Module):
         return loss
     
 class Loss:
-    def __init__(self, ltype = 'BinDICE'):
+    def __init__(self, ltype = CONF.LOSS):
         self.ltype = ltype
         self.totalLoss = 0
 
-    def update(self, logits: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
-        if self.ltype == 'BinDICE':
+    def update(self, epoch: int, logits: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
+        if self.ltype == 'bin_DICE':
             self.loss = BinaryDiceLoss()(logits, gt_mask)
-        elif self.ltype == 'BinC1':
-            self.loss = (BinaryDiceLoss(logits, gt_mask) + 2*BinaryIoULoss(logits, gt_mask) + 2*BCEWithLogitsLoss(logits, gt_mask))/5
-        elif self.ltype == 'SdmDICE':
+        elif self.ltype == 'bin_WeightedBCE':
+            self.loss = BCELoss()(logits, gt_mask, gt_sdm)
+        elif self.ltype == 'bin_BCE':
+            self.loss = BCELoss()(logits, gt_mask)
+        elif self.ltype == 'bin_C1':
+            self.loss = (BinaryDiceLoss()(logits, gt_mask) + 2*BinaryIoULoss()(logits, gt_mask) + 2*BCELoss()(logits, gt_mask))/5
+        elif self.ltype == 'sdm_BCE':
+            self.loss = BCELoss()(logits, gt_mask, gt_sdm)
+        elif self.ltype == 'sdm_DICE':
             self.loss = SDMDiceLoss()(logits, gt_mask)
-        elif self.ltype == 'WeightedBCL':
-            self.loss = WeightedBCELoss(logits, gt_sdm, gt_mask)
-        elif self.ltype == 'SdmC1':
+        elif self.ltype == 'sdm_C1':
             self.loss = SDMDiceLoss()(logits, gt_mask) + 10*(SDMMAELoss()(logits, gt_sdm) + SDMProductLoss()(logits, gt_sdm))
-        elif self.ltype == 'SdmC2':
-            self.loss = SDMDiceLoss(logits, gt_mask) + SDMMAELoss(logits, gt_sdm) + SDMQuadLoss(logits, gt_mask)
-        elif self.ltype == 'SdmC3':
-            self.loss = (2*WeightedBCELoss(logits, gt_sdm, gt_mask) + 2*SDMDiceLoss(logits, gt_mask) + SDMMAELoss(logits, gt_sdm) + SDMQuadLoss(logits, gt_mask))/6
-
+        elif self.ltype == 'sdm_C2':
+            self.loss = (SDMDiceLoss()(logits, gt_mask) + 2*SDMMAELoss()(logits, gt_sdm) + 2*SDMQuadLoss()(logits, gt_mask))/5
+        elif self.ltype == 'sdm_C3':
+            alpha = epoch/CONF.NUM_EPOCHS
+            self.loss = (1 - alpha)*(BCELoss()(logits, gt_mask, gt_sdm) + SDMDiceLoss()(logits, gt_mask)) + alpha*(SDMMAELoss()(logits, gt_sdm) + SDMQuadLoss()(logits, gt_mask))
+        elif self.ltype == 'sdm_C4':
+            self.loss = (BCELoss()(logits, gt_mask, gt_sdm) + SDMDiceLoss()(logits, gt_mask) + SDMMAELoss()(logits, gt_sdm))/3
         self.totalLoss += self.loss
         return self.loss
 
