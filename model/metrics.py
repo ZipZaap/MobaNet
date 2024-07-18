@@ -1,11 +1,9 @@
-from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import OneHotEncoder
-
 import numpy as np
+
 import torch
 import torch.distributed as dist
 
-from utils.util import SDF, compute_sobel_edges
+from utils.sdf import SDF, compute_sobel_edges
 from configs import CONF
 
 def getDiceAcc(pred_mask: torch.Tensor, gt_mask: torch.Tensor):
@@ -21,48 +19,22 @@ def getJaccardAcc(pred_mask: torch.Tensor, gt_mask: torch.Tensor):
     JCC = Inter/Union
     return JCC 
 
-def getHD95Acc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
-    dP = compute_sobel_edges(pred_mask)
-    dP = torch.abs(torch.multiply(gt_sdm, dP))
-    dP = torch.where(dP == 0, float('nan'), dP)
-
-    dG = compute_sobel_edges(gt_mask)
-    dG = torch.abs(torch.multiply(pred_sdm, dG))
-    dG = torch.where(dG == 0, float('nan'), dG)
-
-    dPdG = torch.cat((dP, dG), dim=0).view(dP.shape[0]*2, 1, -1)
-    HD95 = torch.nanmean(torch.nanquantile(dPdG, 0.95, dim=2))
-    # HD95 = HD95.cpu().detach().tolist()
-    return HD95
-
-def getAsdAcc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
-    dP = compute_sobel_edges(pred_mask)
-    dP = torch.abs(torch.multiply(gt_sdm, dP))
-    dP = torch.where(dP == 0, float('nan'), dP)
-
-    dG = compute_sobel_edges(gt_mask)
-    dG = torch.abs(torch.multiply(pred_sdm, dG))
-    dG = torch.where(dG == 0, float('nan'), dG)
-
-    dPdG = torch.cat((dP, dG), dim=0).view(dP.shape[0]*2, 1, -1)
-    ASD = torch.nanmean(torch.nanmean(dPdG, dim=2))
-    # ASD = ASD.cpu().detach().tolist()
-    return ASD
-
 def getBoundaryAcc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
-    dP = compute_sobel_edges(pred_mask)
+    max_dist = (np.sqrt(2)*CONF.INPUT_IMAGE_SIZE/2)/4
+    dist_filter = torch.where(gt_sdm < max_dist, 1, 0)
+
+    dP = compute_sobel_edges(pred_mask)*dist_filter
     dP = torch.abs(torch.multiply(gt_sdm, dP))
     dP = torch.where(dP == 0, float('nan'), dP)
 
-    dG = compute_sobel_edges(gt_mask)
+    dG = compute_sobel_edges(gt_mask)*dist_filter
     dG = torch.abs(torch.multiply(pred_sdm, dG))
     dG = torch.where(dG == 0, float('nan'), dG)
 
     dPdG = torch.cat((dP, dG), dim=0).view(dP.shape[0]*2, 1, -1)
 
     HD95 = torch.nanmean(torch.nanquantile(dPdG, 0.95, dim=2))
-    # ASD = torch.nanmean(torch.nanmean(dPdG, dim=2))
-    ASD = torch.nanmedian(torch.nanmean(dPdG, dim=2))
+    ASD = torch.nanmean(torch.nanmean(dPdG, dim=2))
     return ASD, HD95
 
 class Accuracy:
@@ -78,7 +50,7 @@ class Accuracy:
     def update(self, logits: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
         with torch.no_grad():
             pred_mask = torch.relu(torch.sign(torch.sigmoid(logits)-self.T))
-            pred_sdm = SDF(pred_mask, kernel_size = CONF.SDM_KERNEL, normalize = False)
+            pred_sdm = SDF(pred_mask, kernel_size = CONF.SDM_KERNEL)
 
             self.DSC += getDiceAcc(pred_mask, gt_mask)
             self.IoU += getJaccardAcc(pred_mask, gt_mask)

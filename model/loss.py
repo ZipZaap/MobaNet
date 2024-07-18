@@ -2,11 +2,10 @@ import numpy as np
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.nn import BCELoss, BCEWithLogitsLoss
 
 from configs import CONF
-from utils.util import normalize_sdm
+from utils.sdf import normalize_sdm
 
 # SDM LOSSES
 class CustomBCELoss(nn.Module):
@@ -57,7 +56,6 @@ class SDMDiceLoss(nn.Module):
         super().__init__()
 
     def forward(self, logits: torch.Tensor, gt_mask: torch.Tensor, k: int = 1):
-        # logits = torch.tanh(logits)
         pred_mask = torch.sigmoid(k*logits)
         Inter = torch.sum(torch.multiply(gt_mask, pred_mask))
         Union = torch.sum(gt_mask) + torch.sum(pred_mask)

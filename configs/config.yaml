@@ -15,7 +15,7 @@ NUM_CHANNELS: 1
 SDM_KERNEL: 7
 
 # MODEL PARAMETERS
-LOSS: 'bin_WeightedBCE' # bin_DICE | bin_BCE | bin_WeightedBCE | bin_C1 | sdm_MAE | sdm_DICE | sdm_C1 |
+LOSS: 'bin_DICE' # bin_DICE | bin_BCE | bin_WeightedBCE | bin_C1 | sdm_MAE | sdm_DICE | sdm_C1 |
 NUM_CLASSES: 1
 INIT_LR: 0.0001
 L2_DECAY: 0.00001

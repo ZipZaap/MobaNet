@@ -5,8 +5,8 @@ if __name__ == "__main__":
 
     from engines.SegTrainer import SegTrainer
     from dataset.data_loaders import getDataloaders
-    from dataset.data_prepare import generate_sdms, get_tts
-    from utils.util import initModel, ddp_setup, ddp_cleanup
+    from utils.sdf import generate_sdms
+    from utils.util import get_tts, initModel, ddp_setup, ddp_cleanup
     from configs import CONF
 
     # os.environ['NCCL_P2P_DISABLE'] = '1'
@@ -29,7 +29,6 @@ if __name__ == "__main__":
     imIDs = get_tts()
     generate_sdms(imIDs)
     
-
     if CONF.NUM_GPU > 1:
         print(f'[INFO] Running in distributed mode on {CONF.NUM_GPU} GPUs')
         mp.spawn(main, args=(imIDs), nprocs=CONF.NUM_GPU)
