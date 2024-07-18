@@ -61,13 +61,14 @@ def getBoundaryAcc(pred_mask: torch.Tensor, pred_sdm: torch.Tensor, gt_mask: tor
     dPdG = torch.cat((dP, dG), dim=0).view(dP.shape[0]*2, 1, -1)
 
     HD95 = torch.nanmean(torch.nanquantile(dPdG, 0.95, dim=2))
-    ASD = torch.nanmean(torch.nanmean(dPdG, dim=2))
+    # ASD = torch.nanmean(torch.nanmean(dPdG, dim=2))
+    ASD = torch.nanmedian(torch.nanmean(dPdG, dim=2))
     return ASD, HD95
 
 class Accuracy:
     def __init__(self, sdm_logits: bool = CONF.SDM_LOGITS, threshold: float = CONF.THRESHOLD):
-        self.T = threshold
         self.sdm_logits = sdm_logits
+        self.T = threshold
 
         self.DSC = 0
         self.IoU = 0
@@ -76,12 +77,8 @@ class Accuracy:
 
     def update(self, logits: torch.Tensor, gt_mask: torch.Tensor, gt_sdm: torch.Tensor):
         with torch.no_grad():
-            if self.sdm_logits == True:
-                pred_mask = torch.relu(torch.sign(torch.sigmoid(-1*logits)-self.T))
-                pred_sdm = torch.tanh(logits)
-            else:
-                pred_mask = torch.relu(torch.sign(torch.sigmoid(logits)-self.T))
-                pred_sdm = SDF(pred_mask, kernel_size = 7)
+            pred_mask = torch.relu(torch.sign(torch.sigmoid(logits)-self.T))
+            pred_sdm = SDF(pred_mask, kernel_size = CONF.SDM_KERNEL, normalize = False)
 
             self.DSC += getDiceAcc(pred_mask, gt_mask)
             self.IoU += getJaccardAcc(pred_mask, gt_mask)

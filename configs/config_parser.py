@@ -21,7 +21,6 @@ class Config():
     def getConfig(self):
         self.conf.RUN_ID = f"{self.conf.MODEL}-{self.conf.LOSS}"
         self.conf.SDM_LOGITS = 'sdm' in self.conf.LOSS
-        print('SDM_LOGITS: ', self.conf.SDM_LOGITS )
 
         self.conf.DATASET_PATH = f'{self.conf.DATASET_PATH}/{self.conf.INPUT_IMAGE_SIZE}'
         self.conf.IMAGE_DATASET_PATH = f'{self.conf.DATASET_PATH}/images'

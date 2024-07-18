@@ -127,6 +127,7 @@ def SDF(
     mask: torch.Tensor, 
     kernel_size: int = 3, 
     h: float = 0.35,
+    normalize: bool = True
     ) -> torch.Tensor:
     r"""Approximates the Manhattan distance transform of images using cascaded convolution operations.
 
@@ -157,7 +158,7 @@ def SDF(
     kernel = torch.hypot(grid[0, :, :, 0], grid[0, :, :, 1])
     kernel = torch.exp(kernel / -h).unsqueeze(0)
 
-    out = torch.zeros_like(edges)
+    sdm = torch.zeros_like(edges)
 
     # It is possible to avoid cloning the image if boundary = image, but this would require modifying the image tensor.
     boundary = edges.clone()
@@ -174,27 +175,30 @@ def SDF(
             break
 
         offset: int = i * kernel_size // 2
-        out += (offset + cdt) * edges
+        sdm += (offset + cdt) * edges
         boundary = torch.where(edges == 1, signal_ones, boundary)
 
-    # minval = out[mask == 1].max()
-    # maxval = out[mask == 0].max()
-    # out = out / torch.where(mask == 1, -minval, maxval)
+    return sdm
 
-    B = out.shape[0]
-    minval = torch.multiply(out, mask == 1)
-    minval = minval.view(B , 1, -1).max(dim=2)[0]
-    minval = minval.view(B, 1, 1, 1)
-    minval = torch.multiply(mask == 1, minval)
+def normalize_sdm(mask: torch.Tensor, sdm: torch.Tensor, mode: str = 'minmax'):
+    B = sdm.shape[0]
+    if mode == 'max':
+        maxval = sdm.view(B , 1, -1).max(dim=2)[0]
+        sdm = sdm/ (maxval.view(B, 1, 1, 1)*torch.where(mask == 0, -1 , 1))
+    elif mode == 'minmax':
+        minval = torch.multiply(sdm, mask == 1)
+        minval = minval.view(B , 1, -1).max(dim=2)[0]
+        minval = minval.view(B, 1, 1, 1)
+        minval = torch.multiply(mask == 1, minval)
 
-    maxval = torch.multiply(out, mask == 0)
-    maxval= maxval.view(B , 1, -1).max(dim=2)[0]
-    maxval = maxval.view(B, 1, 1, 1)
-    maxval = torch.multiply(mask == 0, maxval)
+        maxval = torch.multiply(sdm, mask == 0)
+        maxval= maxval.view(B , 1, -1).max(dim=2)[0]
+        maxval = maxval.view(B, 1, 1, 1)
+        maxval = torch.multiply(mask == 0, maxval)
 
-    minmax = -minval + maxval
-    out = out/minmax
-    return out
+        minmax = minval - maxval
+        sdm = sdm/minmax
+    return sdm
 
 def SDF_scipy(mask):
     edges = cv.Canny(mask.astype('uint8'), 100, 200)
