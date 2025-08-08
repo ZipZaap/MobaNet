@@ -1,390 +1,332 @@
-import numpy as np
-
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 
 from utils.sdf import SDF
-from utils.util import gather_metrics
-from configs.config_parser import CONF
-
-import torch
-from utils.sdf import SDF
-
+from utils.util import gather_tensors, logits_to_lbl, logits_to_msk
+from configs.cfgparser  import Config
 
 class SegmentationMetrics:
-    @classmethod
-    def dice(cls, 
+    """
+    Class for computing segmentation metrics.
+    """
+    def __init__(self, cfg: Config):
+        """
+        Initializes the SegmentationMetrics class with the configuration object.
+
+        Args
+        ----
+            cfg : Config
+                Configuration object containing the following attributes:
+                - `.CMA_COEFFICIENTS` (dict[str, int]): Coefficients for the Combined Mean Accuracy (CMA) calculation.
+        """
+
+        self.cfg: Config = cfg
+        self.coef: dict[str, int] = cfg.CMA_COEFFICIENTS
+        self.eps: float = 1e-6
+
+    def dice(self, 
              pd_mask: torch.Tensor, 
-             gt_mask: torch.Tensor, 
-             include_background: bool = CONF.INCLUDE_BACKGROUND
+             gt_mask: torch.Tensor
              ) -> torch.Tensor:
-        
-        if include_background:
-            fg_inter = torch.sum(pd_mask * gt_mask)
-            bg_inter = torch.sum((1 - pd_mask) * (1 - gt_mask))
-            intersection = fg_inter + bg_inter
-            union = torch.sum(gt_mask + (1 - gt_mask) + pd_mask + (1 - pd_mask))
+        """
+        Computes the Dice Similarity Coefficient (DSC) between predicted and ground truth masks.
 
-        else:
-            intersection = torch.sum(pd_mask * gt_mask)
-            union = torch.sum(pd_mask) + torch.sum(gt_mask)
+        Args
+        ----
+            pd_mask : torch.Tensor (B, C, H, W)
+                1-hot encoded predicted mask.
 
-        return (2 * intersection + 1e-6) / (union + 1e-6)
+            gt_mask : torch.Tensor (B, C, H, W)
+                1-hot encoded ground truth mask.
 
-    @classmethod
-    def iou(cls, 
+        Returns
+        -------
+            dice : torch.Tensor
+                Dice Similarity Coefficient.
+        """
+
+        # sum over batch and spatial dimensions 
+        # pd/gt (B, C, H, W) → per_class_dice (C,)
+        dims = (0, 2, 3)
+        numer = torch.sum(gt_mask * pd_mask, dims)
+        denom = torch.sum(gt_mask, dims) + torch.sum(pd_mask, dims)
+        per_class_dice = (2 * numer + self.eps) / (denom + self.eps)
+
+        # filter out classes with no ground truth
+        # per_class_dice (C,) → scalar
+        valid  = torch.sum(gt_mask, dims) > 0  
+        return per_class_dice[valid].mean() 
+
+    def iou(self, 
             pd_mask: torch.Tensor, 
-            gt_mask: torch.Tensor,
-            include_background: bool = CONF.INCLUDE_BACKGROUND
+            gt_mask: torch.Tensor
             ) -> torch.Tensor:
+        """
+        Computes the Intersection over Union (IoU) between predicted and ground truth masks.
 
-        fg_inter = torch.sum(pd_mask * gt_mask)
-        fg_union = torch.sum(gt_mask + pd_mask - pd_mask * gt_mask)
-        fg_iou = (fg_inter + 1e-6) / (fg_union + 1e-6)
+        Args:
+            pd_mask : torch.Tensor (B, C, H, W)
+                1-hot encoded predicted mask.
 
-        if include_background:
-            bg_inter = torch.sum((1 - pd_mask) * (1 - gt_mask))
-            bg_union = torch.sum((1 - gt_mask) + (1 - pd_mask) - (1 - pd_mask) * (1 - gt_mask))
-            bg_iou = (bg_inter + 1e-6) / (bg_union + 1e-6)
-            return (fg_iou + bg_iou) / 2
-        else:
-            return fg_iou
+            gt_mask : torch.Tensor (B, C, H, W)
+                1-hot encoded ground truth mask.
 
-    @classmethod
-    def boundary(cls, 
-                 pd_mask: torch.Tensor, 
-                 gt_mask: torch.Tensor, 
+        Returns
+        -------
+            iou : torch.Tensor
+                Intersection over Union.
+        """
+
+        # sum over batch and spatial dimensions
+        # pd/gt (B, C, H, W) → per_class_iou (C,)
+        dims = (0, 2, 3)
+        inter = torch.sum(gt_mask * pd_mask, dims)
+        union = torch.sum(gt_mask, dims) + torch.sum(pd_mask, dims) - inter
+        per_class_iou = (inter + self.eps) / (union + self.eps)
+
+        # avoid IoU computation on empty classes
+        # per_class_iou (C,) → scalar
+        valid = torch.sum(gt_mask, (0, 2, 3)) > 0
+        return per_class_iou[valid].mean()
+
+    def boundary(self,
+                 pd_mask: torch.Tensor,
+                 gt_mask: torch.Tensor,
                  gt_sdm: torch.Tensor
-                 ) -> tuple[torch.Tensor]:
-        
-        pd_sdm = torch.abs(SDF.sdf(pd_mask))
-        gt_sdm = torch.abs(gt_sdm)
+                 ) -> tuple[torch.Tensor, ...]:
+        """
+        Computes the boundary (SDM-based) metrics between predicted and ground truth masks.
 
+        Args
+        ----
+            pd_mask : torch.Tensor(B, C, H, W)
+                1-hot encoded predicted mask.
+
+            gt_mask : torch.Tensor(B, C, H, W)
+                1-hot encoded ground truth mask.
+
+            gt_sdm : torch.Tensor(B, 1, H, W)
+                Ground truth Signed Distance Map.
+
+        Returns
+        -------
+            asd, hd95, ad, d95 : tuple[torch.Tensor, ...]
+                A tuple containing the following distance metrics:
+                - Average Symmetric Distance (ASD)
+                - Hausdorff Distance (HD95)
+                - Average Distance one-way (AD)
+                - Hausdorff Distance one-way (D95)
+        """
+
+        # mask (B, C, H, W) → edges (B, 1, H, W)
         gt_edges = SDF.compute_sobel_edges(gt_mask).bool()
         pd_edges = SDF.compute_sobel_edges(pd_mask).bool()
 
+        # mask (B, C, H, W) → sdm (B, 1, H, W)
+        pd_sdm = torch.abs(SDF.sdf(pd_mask, self.cfg))
+        gt_sdm = torch.abs(gt_sdm)
+
+        # if edges are empty, default to max penalty
         fallback = torch.tensor(
-            1.0, 
-            dtype=torch.float32, 
+            1.0,
+            dtype=torch.float32,
             device=gt_sdm.device
         )
 
+        # compute distances
         asd, hd95, ad, d95 = [], [], [], []
         for gE, pE, gS, pS in zip(gt_edges, pd_edges, gt_sdm, pd_sdm):
-            d1 = pS[gE != 0]
-            d2 = gS[pE != 0]
+            d1 = pS[gE == True]
+            d2 = gS[pE == True]
             d = torch.cat((d1, d2))
 
-            ad.append(d1.mean() if d1.numel() else fallback)
-            d95.append(torch.quantile(d1, 0.95) if d1.numel() else fallback)
-            asd.append(d.mean() if d.numel() else fallback)
-            hd95.append(torch.quantile(d, 0.95) if d.numel() else fallback)
+            asd.append(fallback if torch.isnan(d).any() else d.mean())
+            hd95.append(fallback if torch.isnan(d).any()  else torch.quantile(d, 0.95))
+            ad.append(fallback if torch.isnan(d1).any()  else d1.mean())
+            d95.append(fallback if torch.isnan(d1).any()  else torch.quantile(d1, 0.95))
 
+        # asd/hd95/ad/d95 (B,) → scalar
         asd = torch.stack(asd).mean()
         hd95 = torch.stack(hd95).mean()
         ad = torch.stack(ad).mean()
         d95 = torch.stack(d95).mean()
         return asd, hd95, ad, d95
 
-        
+    def combined_mean_accuracy(self, 
+                               metrics: dict[str, torch.Tensor]
+                               ) -> torch.Tensor:
+        """
+        Computes the Combined Mean Accuracy (CMA) based on the provided metrics and coefficients.
+
+        Args
+        ----
+            metrics : dict[str, torch.Tensor]
+                Dictionary containing the computed metrics.
+
+        Returns
+        -------
+            cma : torch.Tensor
+                Combined Mean Accuracy.
+        """
+
+        cma = metrics.get('DSC', torch.tensor(0.0)) * self.coef['DSC'] + \
+            metrics.get('IoU', torch.tensor(0.0)) * self.coef['IoU'] + \
+            (1 - metrics.get('ASD', torch.tensor(0.0))) * self.coef['ASD'] + \
+            (1 - metrics.get('AD', torch.tensor(0.0))) * self.coef['AD'] + \
+            (1 - metrics.get('HD95', torch.tensor(0.0))) * self.coef['HD95'] + \
+            (1 - metrics.get('D95', torch.tensor(0.0))) * self.coef['D95']
+        cma /= sum(self.coef.values())
+        return cma
+
 class ClassificationMetrics:
-    @classmethod
-    def accuracy(cls,
-                 cls_pred: torch.Tensor,
-                 cls_gt: torch.Tensor):
+    def __init__(self, cfg: Config):
+        self.cfg = cfg
+
+    def accuracy(self,
+                 pd_cls: torch.Tensor,
+                 gt_cls: torch.Tensor
+                 ) -> torch.Tensor:
+        """
+        Computes the accuracy of the classification predictions.
+
+        Args
+        ----
+            pd_cls : torch.Tensor (B,)
+                Predicted class labels.
+
+            gt_cls : torch.Tensor (B, C)
+                One-hot encoded ground truth class labels.
+
+        Returns
+        -------
+            accuracy : torch.Tensor
+                Accuracy of the predictions.
+        """
         
-        cls_gt_idx = cls_gt.argmax(dim=1)
-        accuracy = (cls_pred == cls_gt_idx).float().mean()
+        # gt_cls (B, C) → gt_cls_idx (B,)
+        gt_cls_idx = gt_cls.argmax(dim=1)
+
+        # (B,) → scalar
+        accuracy = (pd_cls == gt_cls_idx).float().mean()
         return accuracy
     
-def logits2predictions(logits: dict[str, torch.Tensor], 
-                       cls_threshold: float = CONF.CLS_THRESHOLD,
-                       seg_threshold: float = CONF.SEG_THRESHOLD,
-                       cls_classes: int = CONF.CLS_CLASSES
-                       ) -> None:
-    
-    if cls_logits := logits.get('cls', None):
-        cls_probs = nn.functional.softmax(cls_logits, dim=1)
-        if cls_threshold > 1 / cls_classes:
-            above_thresh = cls_probs > cls_threshold
-            topk = above_thresh.int().argmax(dim=1)
-            pd_cls = torch.where(~above_thresh.any(dim=1), 2, topk)
-        else:
-            pd_cls = cls_probs.argmax(dim=1)
-    else:
-        pd_cls = None
-
-    if seg_logits := logits.get('seg', None):
-        pd_mask = (torch.sigmoid(seg_logits) > seg_threshold).float()
-        # if cls_mask:
-        #     pd_mask[pd_cls == 0] = 0
-        #     pd_mask[pd_cls == 1] = 1
-    else:
-        pd_mask = None
-
-    return pd_cls, pd_mask
-
 class Accuracy:
-    def __init__(self,
-                 metrics: list[str] = CONF.METRICS): 
-        self.metrics = {metric:[] for metric in metrics}
+    def __init__(self, cfg: Config): 
+        """
+        Initializes the Accuracy class with the configuration object.
+
+        Args
+        ----
+            cfg : Config
+                Configuration object containing the following attributes:
+                - `.DISTANCE_METRICS` (bool): Whether to compute distance metrics.
+                - `.CLS_THRESHOLD` (float | None): Threshold for classification.
+                - `.WORLD_SIZE` (int): Number of GPUs used for training.
+        """
+        self.distance_metrics: bool = cfg.DISTANCE_METRICS
+        self.cls_threshold: float | None = cfg.CLS_THRESHOLD
+        self.worldsize: int = cfg.WORLD_SIZE
+
+        self.metrics: dict[str, list[torch.Tensor]] = {}
+        self.segMetrics = SegmentationMetrics(cfg)
+        self.clsMetrics = ClassificationMetrics(cfg)
+
+    def _logits2predictions(self,
+                            logits: dict[str, torch.Tensor]
+                            ) -> tuple[torch.Tensor | None, torch.Tensor | None]:
+        """
+        Converts logits to predictions for classification and segmentation tasks.
+        For classification, if the maximum probability for a class exceeds the threshold,
+        the class label is assigned; otherwise, the boundary-class label is assigned. 
+        For segmentation, the predicted 1-hot mask is created by taking the class with the highest logit.
+
+        Args
+        ----
+            logits : dict[str, torch.Tensor]
+                Dictionary containing logits for classification and segmentation.
+
+        Returns
+        -------
+            pd_cls : torch.Tensor (B,) | None
+                Predicted class labels.
+            
+            pd_mask : torch.Tensor (B, C, H, W) | None
+                Predicted segmentation masks.
+        """
+
+        cls_logits = logits.get('cls')
+        if cls_logits is not None:
+           pd_cls = logits_to_lbl(cls_logits, self.cls_threshold)
+        else:
+            pd_cls = None
+
+        seg_logits = logits.get('seg')
+        if seg_logits is not None:
+            pd_mask = logits_to_msk(seg_logits, '1hot')
+        else:
+            pd_mask = None
+
+        return pd_cls, pd_mask
 
     def update(self, 
                logits: dict[str, torch.Tensor], 
-               batch: dict[str, torch.Tensor]
-               ) -> None:
+               batch: dict[str, torch.Tensor]):
+        """
+        Update the metrics dictionary with the values for the current batch.
+
+        Args
+        ----
+            logits : dict[str, torch.Tensor]
+                Dictionary containing logits for classification and segmentation.
+
+            batch : dict[str, torch.Tensor]
+                Dictionary containing ground truth labels.
+        """
         
-        with torch.no_grad():
-            pd_cls, pd_mask = logits2predictions(logits)
-            gt_mask = batch.get('mask', None)
-            gt_cls = batch.get('cls', None)
-            gt_sdm = batch.get('sdm', None)
+        with torch.inference_mode():
+            pd_cls, pd_mask = self._logits2predictions(logits)
+            gt_cls, gt_mask, gt_sdm = batch['cls'], batch['mask'], batch['sdm']
 
-            ttr = ClassificationMetrics.accuracy(pd_cls, gt_cls)
-            dsc = SegmentationMetrics.dice(pd_mask, gt_mask)
-            iou = SegmentationMetrics.iou(pd_mask, gt_mask)
+            if pd_cls is not None:
+                ttr = self.clsMetrics.accuracy(pd_cls, gt_cls)
+                self.metrics.setdefault('TTR', []).append(ttr)
 
-            self.metrics['TTR'].append(ttr)
-            self.metrics['DSC'].append(dsc)
-            self.metrics['IoU'].append(iou)
-
-            idx = gt_mask.ne(0).any((1,2,3)) & gt_mask.eq(0).any((1,2,3))
-            if idx.any():
-                asd, hd95, ad, d95 = SegmentationMetrics.boundary(pd_mask[idx], gt_mask[idx], gt_sdm[idx])
-                cma = (dsc + iou + (1 - asd) + 2*(1 - ad)) / 5
-                self.metrics['ASD'].append(asd)
-                self.metrics['HD95'].append(hd95)
-                self.metrics['AD'].append(ad)
-                self.metrics['D95'].append(d95)
-                self.metrics['CMA'].append(cma)
+            if pd_mask is not None: 
+                dsc = self.segMetrics.dice(pd_mask, gt_mask)
+                iou = self.segMetrics.iou(pd_mask, gt_mask)
+                self.metrics.setdefault('DSC', []).append(dsc)
+                self.metrics.setdefault('IoU', []).append(iou)
+                
+                if self.distance_metrics:
+                    idx = (torch.argmax(gt_cls, dim=1) == 2)
+                    if idx.any():
+                        asd, hd95, ad, d95 = self.segMetrics.boundary(pd_mask[idx], gt_mask[idx], gt_sdm[idx])
+                        self.metrics.setdefault('ASD', []).append(asd)
+                        self.metrics.setdefault('AD', []).append(ad)
+                        self.metrics.setdefault('HD95', []).append(hd95)
+                        self.metrics.setdefault('D95', []).append(d95)
 
     def compute_avg(self, length: int) -> dict[str, float]:
-        self.metrics = {k:torch.stack(v).mean() for k,v in self.metrics.items()}
+        """
+        Computes the average of the metrics over all batches.
         
-        if CONF.NUM_GPU > 1:
-            self.metrics = gather_metrics(self.metrics)
+        Args
+        ----
+            length : int
+                Number of batches.
 
-        self.metrics = {key:round(val.item(), 4) for key, val in self.metrics.items()}
-        return self.metrics
+        Returns
+        -------
+            avgMetrics : dict[str, float]
+                Dictionary of averaged metrics.
+        """
+        avgMetrics = {k:torch.stack(v).mean() for k,v in self.metrics.items()}
+        avgMetrics['CMA'] = self.segMetrics.combined_mean_accuracy(avgMetrics)
+
+        if self.worldsize > 1:
+            avgMetrics = gather_tensors(avgMetrics, self.worldsize)
+
+        return {k:round(v.item(), 4) for k, v in avgMetrics.items()}
 
     def reset(self):
-        self.metrics = {metric:[] for metric in self.metrics.keys()}
-
-# class SegmentationMetrics:
-#     @classmethod
-#     def dice(cls, 
-#              pred_mask: torch.Tensor, 
-#              gt_mask: torch.Tensor, 
-#              include_background: bool = CONF.INCLUDE_BACKGROUND
-#              ) -> torch.Tensor:
-        
-#         if include_background:
-#             obj_inter = torch.sum(pred_mask * gt_mask)
-#             bg_inter = torch.sum((1 - pred_mask) * (1 - gt_mask))
-#             intersection = obj_inter + bg_inter
-#             union = torch.sum(gt_mask + (1 - gt_mask) + pred_mask + (1 - pred_mask))
-
-#         else:
-#             intersection = torch.sum(pred_mask * gt_mask)
-#             union = torch.sum(pred_mask) + torch.sum(gt_mask)
-
-#         return (2 * intersection + 1e-6) / (union + 1e-6)
-
-#     @classmethod
-#     def iou(cls, 
-#             pred_mask: torch.Tensor, 
-#             gt_mask: torch.Tensor,
-#             include_background: bool = CONF.INCLUDE_BACKGROUND
-#             ) -> torch.Tensor:
-
-#         fg_inter = torch.sum(pred_mask * gt_mask)
-#         fg_union = torch.sum(gt_mask + pred_mask - pred_mask * gt_mask)
-#         fg_iou = (fg_inter + 1e-6) / (fg_union + 1e-6)
-
-#         if include_background:
-#             bg_inter = torch.sum((1 - pred_mask) * (1 - gt_mask))
-#             bg_union = torch.sum((1 - gt_mask) + (1 - pred_mask) - (1 - pred_mask) * (1 - gt_mask))
-#             bg_iou = (bg_inter + 1e-6) / (bg_union + 1e-6)
-#             return (fg_iou + bg_iou) / 2
-#         else:
-#             return fg_iou
-
-#     @classmethod
-#     def boundary(cls, 
-#                  pred: dict[str, torch.Tensor], 
-#                  batch: dict[str, torch.Tensor]
-#                  ) -> tuple[torch.Tensor]:
-        
-#         pred_mask = pred['mask']
-#         gt_mask = batch['mask']
-#         gt_sdm = batch['sdm']
-#         gt_cls = batch['cls']
-
-#         # idx = (batch['cls'].argmax(dim=1) == 2)
-
-#         pred_sdm = torch.abs(SDF.sdf(pred_mask))
-#         gt_sdm = torch.abs(gt_sdm)
-
-#         edges_gt = SDF.compute_sobel_edges(gt_mask)
-#         edges_pred = SDF.compute_sobel_edges(pred_mask)
-
-#         dG = torch.where(edges_gt != 0, pred_sdm, float('nan'))
-#         dP = torch.where(edges_pred != 0, gt_sdm, float('nan'))
-#         dGdP = torch.cat((dG, dP), dim=1).view(dP.shape[0], -1)
-
-#         asd = torch.nanmean(torch.nanmean(dGdP, dim=1))
-#         hd95 = torch.nanmean(torch.nanquantile(dGdP, 0.95, dim=1))
-
-#         dG_flat = dG.view(dG.shape[0], -1)
-#         ad = torch.nanmean(torch.nanmean(dG_flat, dim=1))
-#         d95 = torch.nanmean(torch.nanquantile(dG_flat, 0.95, dim=1))
-#         return asd, hd95, ad, d95
-
-
-            # d1 = torch.where(gt_edges != 0, pd_sdm, float('nan'))
-            # d2 = torch.where(pd_edges != 0, gt_sdm, float('nan'))
-            # d = torch.cat((d1, d2), dim=1).view(d2.shape[0], -1)
-            # asd = torch.nanmean(torch.nanmean(d, dim=1))
-            # hd95 = torch.nanmean(torch.nanquantile(d, 0.95, dim=1))
-
-            # d1_flat = d1.view(d1.shape[0], -1)
-            # ad = torch.nanmean(torch.nanmean(d1_flat, dim=1))
-            # d95 = torch.nanmean(torch.nanquantile(d1_flat, 0.95, dim=1))
-            # return asd, hd95, ad, d95
-    
-# class ClassificationMetrics:
-#     @classmethod
-#     def accuracy(cls,
-#                  cls_pred,
-#                  cls_gt):
-        
-#         cls_gt_idx = cls_gt.argmax(dim=1)
-#         accuracy = (cls_pred == cls_gt_idx).float().mean()
-#         return accuracy
-
-# def getDiceAcc(pred_mask: torch.Tensor, 
-#                gt_mask: torch.Tensor, 
-#                include_background: bool = CONF.INCLUDE_BACKGROUND):
-    
-#     if include_background == False:
-#         Inter = torch.sum(torch.multiply(gt_mask, pred_mask))
-#         Union = torch.sum(gt_mask) + torch.sum(pred_mask)
-#     else: 
-#         scarpPred, scarpTrue = pred_mask, gt_mask
-#         backgPred, backgTrue = torch.ones_like(pred_mask) - pred_mask, torch.ones_like(gt_mask) - gt_mask
-#         Inter = torch.sum(torch.multiply(scarpTrue, scarpPred) + torch.multiply(backgTrue, backgPred))
-#         Union = torch.sum(scarpTrue + backgTrue + scarpPred + backgPred)
-
-#     DSC = (2*Inter + 1e-6)/(Union + 1e-6)
-#     return DSC
-
-# def getJaccardAcc(pred_mask: torch.Tensor, 
-#                   gt_mask: torch.Tensor, 
-#                   include_background: bool = CONF.INCLUDE_BACKGROUND):
-#     scarpPred, scarpTrue = pred_mask, gt_mask
-#     backgPred, backgTrue = torch.ones_like(pred_mask) - pred_mask, torch.ones_like(gt_mask) - gt_mask
-#     ScarpInter = torch.sum(torch.multiply(scarpTrue, scarpPred))
-#     ScarpUnion = torch.sum(scarpTrue + scarpPred - torch.multiply(scarpTrue, scarpPred))
-#     Scarp_IoU = (ScarpInter + 1e-6)/(ScarpUnion + 1e-6)
-#     if include_background:
-#         BackgInter = torch.sum(torch.multiply(backgTrue, backgPred))
-#         BackgUnion = torch.sum(backgTrue + backgPred - torch.multiply(backgTrue, backgPred))
-#         Backg_IoU = (BackgInter + 1e-6)/(BackgUnion + 1e-6)
-#         JCC = (Backg_IoU + Scarp_IoU)/2
-#     else:
-#         JCC = Scarp_IoU
-
-#     return JCC 
-    
-# def getBoundaryAcc(pred_mask: torch.Tensor,
-#                    gt_mask: torch.Tensor, 
-#                    gt_sdm: torch.Tensor):
-    
-#     pred_sdm = SDF.sdf(pred_mask)
-#     pred_sdm, gt_sdm = torch.abs(pred_sdm), torch.abs(gt_sdm)
-    
-#     dG = SDF.compute_sobel_edges(gt_mask)
-#     dP = SDF.compute_sobel_edges(pred_mask)
-
-#     dG = torch.where(dG != 0, pred_sdm, float('nan'))
-#     dP = torch.where(dP != 0, gt_sdm, float('nan'))
-#     dGdP = torch.cat((dG, dP), dim=1).view(dP.shape[0],-1)
-
-#     ASD = torch.nanmean(torch.nanmean(dGdP, dim=1))
-#     HD95 = torch.nanmean(torch.nanquantile(dGdP, 0.95, dim=1))
-#     D95 = torch.nanmean(torch.nanquantile(dG.view(dG.shape[0],-1) , 0.95, dim=1))
-#     AD = torch.nanmean(torch.nanmean(dG.view(dG.shape[0],-1) , dim=1))
-#     return ASD, HD95, AD, D95
-
-# def getClsAcc(cls_logits: torch.Tensor, gt_cls: torch.Tensor):
-#     pred_cls = nn.Softmax(dim=1)(cls_logits)
-#     gt_cls = torch.argmax(gt_cls, dim=1)
-#     if CONF.CLS_THRESHOLD > 1/CONF.CLS_CLASSES:
-#         topk = torch.argmax((pred_cls > CONF.CLS_THRESHOLD).to(torch.int), dim=1)
-#         pred_cls = torch.where(~(pred_cls > CONF.CLS_THRESHOLD).any(dim=1), 2, topk)
-#     else:
-#         pred_cls = torch.argmax(pred_cls, dim=1)
-#     ttr = torch.mean((pred_cls == gt_cls).to(torch.float32))
-#     return ttr, pred_cls
-
-# def getPredMask(seg_logits: torch.Tensor, 
-#                 pred_cls: torch.Tensor,
-#                 thresh: float = CONF.SEG_THRESHOLD,
-#                 cls_mask: bool = CONF.CLS_MASK):
-#     pred_mask = torch.relu(torch.sign(torch.sigmoid(seg_logits)-thresh))
-#     if cls_mask:
-#         pred_mask = torch.where((pred_cls == 0).view(pred_mask.shape[0], 1, 1, 1), 
-#                                 torch.zeros(pred_mask.shape[1:]).to(pred_mask.device), pred_mask)
-#         pred_mask = torch.where((pred_cls == 1).view(pred_mask.shape[0], 1, 1, 1), 
-#                             torch.ones(pred_mask.shape[1:]).to(pred_mask.device), pred_mask)
-#     return pred_mask
-
-# class Accuracy:
-#     def __init__(self, device): 
-#         self.device = device
-#         self.metrics = ['TTR', 'CMA', 'DSC', 'IoU',
-#                         'ASD', 'AD', 'HD95', 'D95']
-
-#     def update(self, 
-#                seg_logits: torch.Tensor, 
-#                cls_logits: torch.Tensor, 
-#                gt_mask: torch.Tensor, 
-#                gt_sdm: torch.Tensor, 
-#                gt_cls: torch.Tensor):
-        
-#         with torch.no_grad():
-#             ttr, pred_cls = getClsAcc(cls_logits, gt_cls)
-#             pred_mask = getPredMask(seg_logits, pred_cls)
-#             dsc = getDiceAcc(pred_mask, gt_mask)
-#             iou = getJaccardAcc(pred_mask, gt_mask)
-#             self.metrics['TTR'].append(ttr)
-#             self.metrics['DSC'].append(dsc)
-#             self.metrics['IoU'].append(iou)
-
-#             if CONF.BOUNDARY:
-#                 sdm_idx = (torch.argmax(gt_cls, dim=1) == 2)
-#                 if sdm_idx.sum() > 0:
-#                     asd, hd95, ad, d95 = getBoundaryAcc(pred_mask[sdm_idx], gt_mask[sdm_idx], gt_sdm[sdm_idx])
-#                     self.metrics['ASD'].append(asd)
-#                     self.metrics['AD'].append(ad)
-#                     self.metrics['HD95'].append(hd95)
-#                     self.metrics['D95'].append(d95)      
-            
-#     def compute_avg(self):
-#         if CONF.BOUNDARY:
-#             for key, val in self.metrics.items():
-#                 if val:
-#                     self.metrics[key] = torch.nanmean(torch.stack(val))
-#                 else:
-#                     self.metrics[key] = torch.tensor(float('nan'), device = self.device) #val device
-#             self.metrics['CMA'] = (self.metrics['DSC'] + self.metrics['IoU'] + (1 - self.metrics['ASD']) + 2*(1 - self.metrics['AD']))/5
-#         else:
-#             self.metrics = {key:torch.nanmean(torch.stack(val)) for key,val in self.metrics.items() if val}
-        
-#         if CONF.NUM_GPU > 1:
-#             self.metrics = gather_metrics(self.metrics)
-#         self.metrics = {key:round(val.item(), 4) for key, val in self.metrics.items()}
-#         return self.metrics
-    
-#     def reset(self):
-#         self.metrics = {metric:[] for metric in self.metrics}
+        self.metrics: dict[str, list[torch.Tensor]] = {}

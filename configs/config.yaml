@@ -3,301 +3,326 @@
 # DIRECTORIES
 # =====================================================
 DATASET_DIR: 
-  value: 'D:/DataStorage/SemSeg/ver1/train'
+  default: D:/DataStorage/SemSeg/ver1
   type: str
-  hint: 'Path to the dataset folder'
+  help: Path to the dataset folder.
 
 RESULTS_DIR: 
-  value: 'saved'
+  default: saved
   type: str
-  hint: 'Path to the output folder'
-
-# =====================================================
-# RUN CONFIGURATION
-# =====================================================
-MODEL: 
-  value: UNet
-  type: str
-  options: ['AuxNet-ED', 'AuxNet-EDC', 'AuxNet-C', 'AuxNet-D', 'UNet', 'ClsCNN']
-  hint: 'Type of model to be trained'
-
-PT_WEIGHTS:
-  value: null
-  type: str
-  hint: 'Name of the pretrained weights file (wihout the .pth extension)'
-
-# EXPORT_LAYERS:
-#   value: []
-#   type: list
-#   options: ['encoder', 'clshead', 'seghead']
-#   hint: 'List of layers to be loaded from the pretrained model'
-
-# FREEZE_LAYERS:
-#   value: ['clshead']
-#   type: list
-#   options: ['encoder', 'clshead', 'seghead']
-#   hint: 'List of layers to be frozen during training'
+  help: Path to the experiment metadata folder.
 
 # =====================================================
 # DATASET PARAMETERS
 # =====================================================
 SEED:
-  value: 42
+  default: 42
   type: int
-  hint: 'Random seed for the dataset split'
+  help: Random seed for the dataset split.
 
 TRAIN_SET_COMPOSITION: 
-  value: full
+  default: boundary
   type: str
-  options: ['full', 'boundary']
-  hint: 'Training dataset composition; "full" for unfiltered dataset, "boundary" for images containing boundaries'
+  choices: [full, boundary]
+  help: |
+    Training dataset composition:
+    * full:     unfiltered dataset
+    * boundary: only images containing boundaries
 
 TEST_SET_COMPOSITION:
-  value: full
+  default: boundary
   type: str
-  options: ['full', 'boundary']
-  hint: 'Testing dataset composition; "full" for unfiltered dataset, "boundary" for images containing boundaries'
+  choices: [full, boundary]
+  help: |
+    Testing dataset composition:
+    * full:     unfiltered dataset
+    * boundary: only images containing boundaries.
 
 TEST_SPLIT:
-  value: 0.15
+  default: 0.1
   type: float
-  hint: 'Fraction of the dataset to be used as a test set'
+  help: Fraction of the dataset to be used as a test set.
 
 CROSS_VALIDATION:
-  value: False
+  default: False
   type: bool
-  hint: 'Whether to perform K-fold cross-validation'
+  help: Whether to perform K-fold cross-validation.
 
 DEFAULT_FOLD:
-  value: 0
+  default: 0
   type: int
-  hint: 'Default fold to use if cross-validation is disabled'
+  help: Default fold to use if cross-validation is disabled.
 
 NUM_WORKERS:
-  value: 1
+  default: 1
   type: int
-  hint: 'Number of subprocesses to use in PyTorch DataLoader. If set to 0, data loading occurs in the main process'
+  help: Number of subprocesses to use in PyTorch DataLoader. If set to 0, data loading occurs in the main process.
 
 # =====================================================
 # MODEL CONFIGURATION
 # =====================================================
-INPUT_IMAGE_SIZE:
-  value: 512
-  type: int
-  hint: 'Size of the input image'
+MODEL: 
+  default: MobaNet_ED
+  type: str
+  choices: [MobaNet_ED, MobaNet_EDC, MobaNet_C, MobaNet_D, UNet]
+  help: |
+    Type of model to be trained:
+      * MobaNet_ED:  Multi-output UNet with trainable Encoder & Decoder.
+      * MobaNet_EDC: Multi-output UNet with trainable Encoder, Decoder & Classification head.
+      * MobaNet_C:   Multi-output UNet with trainable Classification head
+      * MobaNet_D:   Multi-output UNet with trainable Decoder.
+      * UNet:        Standard U-Net architecture.
 
-NUM_CHANNELS: 
-  value: 1
-  type: int
-  hint: 'Number of channels in the input image'
+CHECKPOINT:
+  default: saved/exp_0/MobaNet_ED-model.pth
+  type: str
+  help: |
+    Path to the checkpoint file containing pretrained weights.
+      * When running `training`:  training will start from this checkpoint, unless `CHECKPOINT` is set to `null`.
+      * When running `inference`: predictions will be made using this checkpoint; Has to be set to a valid path.
 
-NUM_LAYERS:
-  value: 5
+INPUT_SIZE:
+  default: 512
   type: int
-  hint: 'Number of horizontal layers (or distinct resolution levels) in a UNet including the bottleneck'
+  help: Size of the input image.
 
-L1_DEPTH:
-  value: 16
+INPUT_CHANNELS: 
+  default: 1
+  choices: [1, 3]
   type: int
-  hint: 'Feature depth of the Conv2D blocks in the 1st layer; this number is doubled with each downsampling stage'
+  help: Number of channels in the input image; 1 for grayscale, 3 for RGB.
+
+UNET_DEPTH:
+  default: 5
+  type: int
+  help: Number of horizontal layers (or distinct resolution levels) in a UNet including the bottleneck.
+
+CONV_DEPTH:
+  default: 16
+  type: int
+  help: Feature depth of the Conv2D blocks in the 1st layer; this number is doubled with each downsampling stage.
 
 BATCH_SIZE:
-  value: 16
+  default: 16
   type: int
-  hint: 'Batch size for training'
+  help: Batch size for training, inference and sdm calculation.
 
 # --- Segmentation Branch --- #
 SEG_CLASSES:
-  value: 1
+  default: 2
   type: int
-  hint: 'Number of classes in the segmentation task'
+  help: Number of classes in the segmentation task (incl. background); 2 is a minimum.
 
 SEG_DROPOUT:
-  value: 0.1
+  default: 0.1
   type: float
-  hint: 'Dropout value for the decoder/encoder in segmentation branch'
-
-SEG_THRESHOLD:
-  value: 0.5
-  type: float
-  hint: 'Segmentation threshold; pixel values above this are set to 1'
-
+  help: Dropout value for the decoder/encoder in segmentation branch.
 
 # --- Classification Branch --- #
 CLS_CLASSES:
-  value: 3
+  default: 3
   type: int
-  hint: 'Number of classes in the classification task'
+  help: Number of classes in the classification task (incl. boundary class); 3 is a minimum.
 
 CLS_DROPOUT:
-  value: 0.3
+  default: 0.3
   type: float
-  hint: 'Dropout value for the classification head'
+  help: Dropout value for the classification head.
 
 CLS_THRESHOLD:
-  value: 0.7
+  default: 0.7
   type: float
-  hint: 'Classification threshold; only probabilities above this yield a positive classification'
+  help: Classification threshold; only probabilities above this yield a positive classification.
 
 # =====================================================
 # OPTIMIZER SETTINGS
 # =====================================================
 INIT_LR:
-  value: 0.00001
+  default: 0.00001
   type: float
-  hint: 'Initial learning rate at the beginning of the warmup'
+  help: Initial learning rate at the beginning of the warmup.
 
 BASE_LR:
-  value: 0.0001
+  default: 0.0001
   type: float
-  hint: 'Base learning rate reached after the warmup'
+  help: Base learning rate reached after the warmup.
 
 L2_DECAY:
-  value: 0.00001
+  default: 0.00001
   type: float
-  hint: 'L2 regularization decay'
+  help: L2 regularization decay.
 
 WARMUP_EPOCHS:
-  value: 10
+  default: 10
   type: int
-  hint: 'Number of warmup epochs to reach BASE_LR'
+  help: Number of warmup epochs to reach BASE_LR. If set to 0, no warmup is performed.
 
 TRAIN_EPOCHS:
-  value: 400
+  default: 200
   type: int
-  hint: 'Number of training epochs, excluding the warmup'
+  help: Number of training epochs, excluding the warmup.
 
 # =====================================================
 # SIGNED DISTANCE MAP (SDM) PARAMETERS
 # =====================================================
 SDM_KERNEL_SIZE: 
-  value: 7
+  default: 7
   type: int
-  hint: 'Kernel size for SDM'
+  help: Kernel size for SDM estimation.
 
-SDM_KERNEL_TYPE:
-  value: 'chebyshev'
+SDM_DISTANCE:
+  default: chebyshev
   type: str
-  options: ['manhattan', 'chebyshev', 'euclidean']
-  hint: 'Type of kernel used to calculate the SDM'
+  choices: [manhattan, chebyshev, euclidean]
+  help: Type of distance used for the SDM.
 
 SDM_NORMALIZATION:
-  value: 'minmax'
+  default: minmax
   type: str
-  options: ['minmax', 'static_max', 'dynamic_max']
-  hint: 'Normalization type for the SDM kernel'
+  choices: ['minmax', 'static_max', 'dynamic_max']
+  help: |
+    SDM normalisation mode. Available normalization options:
+      * minmax:      by both max and min distance values of each individual SDM.
+      * dynamic_max: by the max distance value of each individual SDM.
+      * static_max:  by the global max distance value (depends on `SDM_DISTANCE`).
+
+SDM_SMOOTHING:
+  default: False
+  type: bool
+  help: |
+    Whether the multi-class SDM is calculated in a smooth or discrete manner:
+      * If `True`:  derived from the logits smoothly using `logsumexp`.
+      * If `False`: derived from the logits using `torch.min()` operation.
+
+SDM_SMOOTHING_ALPHA:
+  default: 15.0
+  type: float
+  help: Smoothing factor for `logsumexp`; only relevant if `SDM_SMOOTHING == True`.
 
 # =====================================================
 # LOSS CONFIGURATION
 # =====================================================
 LOSS:
-  value: 'DICE_BCE'
+  default: SoftDICE
   type: str
-  options: ['DICE_BCE']
-  hint: 'Loss function used to train the model'
-
-INCLUDE_BACKGROUND:
-  value: True
-  type: bool
-  hint: 'Consider the background class in the loss function'
+  choices: [SoftDICE, HardDICE, IoU, SegCE, wSegCE, ClsCE, MAE, cMAE, sMAE, Boundary]
+  help: | 
+    Loss function or a combination of loss functions (separated by `_`) used to train the model:
+      * SoftDICE: Soft (probabilistic) DICE loss  
+      * HardDICE: Hard (discrete) DICE loss  
+      * IoU:      Intersection-over-Union loss  
+      * SegCE:    Segmentation Cross-Entropy loss  
+      * wSegCE:   SDM-weighted Segmentation Cross-Entropy loss  
+      * ClsCE:    Classification Cross-Entropy loss  
+      * MAE:      Mean Absolute Error loss  
+      * cMAE:     Clamped MAE loss  
+      * sMAE:     Signed MAE loss  
+      * Boundary: Boundary loss  
+    For detailed information on each loss function, see `model/loss.py`.
 
 ADAPTIVE_WEIGHTS:
-  value: False
+  default: False
   type: bool
-  hint: 'Automatically balance contributions of loss components if combined loss is used'
+  help: Automatically balance contributions of loss components if combined loss is used.
 
-WEIGHTS:
-  value: null
+STATIC_WEIGHTS:
+  default: null
   type: list
-  hint: 'Static weights for the loss components; Only used if ADAPTIVE_WEIGHTS is False'
+  help: Static weights for the loss components. Only relevant if `ADAPTIVE_WEIGHTS == False`.
+        If set to `null`, each loss is weighted equally.
 
 CLAMP_DELTA:
-  value: 0.2
+  default: 0.2
   type: float
-  hint: 'Clamping delta applied to the SDM kernel when calculating ClampedMAE'
+  help: Clamping delta applied to the SDM kernel when calculating `cMAE` loss.
 
 SIGMOID_STEEPNESS:
-  value: 1000
+  default: 1000
   type: int
-  hint: 'Determines the steepness of the sigmoid in HardDiceLoss'
+  help: |
+    Determines the steepness of the Sigmoid in `DICE`, `IoU` and `sMAE` losses.
+    Higher values yield a steeper curve and a closer approximation of the step function.
 
 # =====================================================
-# SAVE SETTINGS
+# EVALUATION SETTINGS
 # =====================================================
 SAVE_MODEL:
-  value: True
+  default: True
   type: bool
-  hint: 'Whether to save the trained model'
+  help: Whether to save the trained model. 
 
-SAVE_METRIC:
-  value: 'DSC'
+EVAL_INTERVAL:
+  default: 1
+  type: int
+  help: Interval in epochs at which to evaluate the model on the validation set.
+
+EVAL_METRIC:
+  default: DSC
   type: str
-  options: ['TTR', 'CMA', 'DSC', 'IoU', 'ASD', 'AD', 'HD95', 'D95']
-  hint: 'Metric to choose the best epoch during training'
+  choices: ['TTR', 'CMA', 'DSC', 'IoU', 'ASD', 'AD', 'HD95', 'D95']
+  help: |
+    Best epoch selection metric:
+      * TTR:  True-to-test ratio. Measures classification accuracy.
+      * DSC:  DICE score. Measures global overlap.
+      * IoU:  Intersection over Union score. Measures global overlap, but penalizes false positives more harshly.
+      * ASD:  Average Symmetric Distance. Measures the mean distance between the boundaries of ground-truth and prediction.
+      * AD:   Average one-way Distance. Relaxes the impact of false-positives.
+      * HD95: Hausdorff Distance 95th percentile. Measures the worst-case boundary discrepancy.
+      * D95:  One-way Distance 95th percentile. Relaxes the impact of false-positives.
+      * CMA:  Combined Mean Accuracy. A weighted combination of the above.
+
+CMA_COEFFICIENTS:
+  default: {'DSC': 1, 'IoU': 1, 'ASD': 1, 'AD': 1, 'HD95': 0, 'D95': 0}
+  type: dict
+  help: Coefficients that define the contribution of each metric to the overall `CMA`.
+
+DISTANCE_METRICS:
+  default: True
+  type: bool
+  help: Whether to calculate distance metrics (ASD, AD, HD95, D95) during evaluation.
 
 # =====================================================
 # DISTRIBUTED DATA PARALLEL (DDP)
 # =====================================================
 GPUs:
-  value: [0]
+  default: [0]
   type: list
-  hint: 'List of GPUs for distributed training'
+  help: List of GPUs for distributed training; or a single GPU for non-distributed training.
 
-MASTER_ADDR:
-  value: 'localhost'
+MASTER_ADDR:  
+  default: localhost
   type: str
-  hint: 'Master node address'
+  help: Master node address.
 
 MASTER_PORT:
-  value: '12355'
+  default: 12355
   type: str
-  hint: 'Master node port for DDP communication'
+  help: Master node port for DDP communication.
 
-NCCL_P2P_DISABLE:
-  value: False
+NCCL_P2P:
+  default: True
   type: bool
-  hint: 'Disable peer-to-peer communication for DDP; This might help if you encounter issues with DDP'
+  help: Enable peer-to-peer communication for DDP; Disabling this might help if you encounter issues with DDP.
 
 # =====================================================
 # LOGGER SETTINGS
 # =====================================================
 LOG_WANDB:
-  value: True
+  default: True
   type: bool
-  hint: 'Enable logging to Weights and Biases'
+  help: Enable logging to Weights and Biases.
 
 LOG_LOCAL:
-  value: True
+  default: True
   type: bool
-  hint: 'Enable saving logs locally'
+  help: Enable saving logs locally.
 
 EXP_ID:
-  value: 'merged'
+  default: exp_0
   type: str
-  hint: 'Experiment identifier'
+  help: Experiment identifier. Will be generated automatically if set to `null`.
 
 RUN_ID:
-  value: 'DICE_BCE_IoU'
+  default: null
   type: str
-  hint: 'Run identifier'
-
-# =====================================================
-# OPTIONAL (Commented Out)
-# =====================================================
-# Uncomment the following if needed:
-#
-# FOLD_ID:
-#   value: 2
-#   type: int
-#   hint: 'Which fold to use if cross-validation is disabled'
-#
-# IMAGE CONFIGURATION:
-# INPUT_IMAGE_PATH: 
-#   value: 'D:/DataStorage/SemSeg/ver1/test'
-#   type: str
-#   hint: 'Path to the input image folder'
-#
-# BOUNDARY:
-#   value: False
-#   type: bool
-#   hint: 'Flag for classification mask'
+  help: Run identifier. Will be generated automatically if set to `null`.

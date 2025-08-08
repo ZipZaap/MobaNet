@@ -1,140 +1,282 @@
-import os
-import json
-import random
+import cv2
 import numpy as np
-from scipy import ndimage
-from sklearn.model_selection import KFold
+from pathlib import Path
 
 import torch
-from torch.distributed import init_process_group, destroy_process_group, all_gather
-from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.nn.functional as F
+from torch.distributed import all_gather
 
-from model.AuxNet import UNet
-from configs.config_parser import CONF
+from configs.cfgparser  import Config
 
-class Subprocess():
-    def __init__(self, 
-                 rank,
-                 gpu_list: list[int] = CONF.GPUs,
-                 num_gpu: int = CONF.NUM_GPU,
-                 master_addr: str = CONF.MASTER_ADDR,
-                 master_port: str = CONF.MASTER_PORT,
-                 load_layers: list[str] = CONF.LOAD,
-                 freeze_layers: list[str] = CONF.FREEZE,
-                 mdl_dir: str = CONF.MDL_DIR,
-                 weights: str = CONF.PT_WEIGHTS
-                 ) -> None:
-        
-        self.rank = rank
-        self.gpu_list = gpu_list
-        self.num_gpu = num_gpu
-        self.master_addr = master_addr
-        self.master_port = master_port
-        self.load_layers = load_layers
-        self.freeze_layers = freeze_layers
-        self.mdl_dir = mdl_dir
-        self.weights = weights
+
+def load_png(impath: str | Path) -> np.ndarray:
+    """
+    Load a PNG image from the specified path and normalize it to [0, 1].
+    If the image is 2D, it is reshaped to 3D with a single channel.
+    If the image is 3D, it is loaded in BGR format, which is maintained
+    throughout the rest of the processing/training.
+
+    Args
+    ----
+        impath : str | Path
+            Path to the .png image.
+
+    Returns
+    -------
+        arr : np.ndarray (H, W, C)
+            Normalized image array.
+
+    Raises
+    ------
+        FileNotFoundError
+            If the image file does not exist.
+
+        ValueError
+            If the image shape is not 2D or 3D.
+    """
+
+    arr = cv2.imread(str(impath), cv2.IMREAD_UNCHANGED)
+    if arr is None:
+        raise FileNotFoundError(f"Input path {impath} does not exist or is not a file.")
+
+    if arr.ndim == 2:
+        arr = arr[..., None]  # shape: (H, W) → (H, W, 1)
+    elif arr.ndim > 3:
+        raise ValueError(f"Unsupported image shape: {arr.shape}. Expected a 2D or 3D image.")
+
+    arr = arr.astype(np.float32) / np.iinfo(arr.dtype).max  # Normalize to [0, 1]
+    return arr
+
+
+def load_mask(maskpath: str | Path, seg_classes: int = 1) -> np.ndarray:
+    """
+    Load a mask from the specified path. If the mask has multiple classes, it is converted to a one-hot encoded format.
+    Alternatively, leave the default `seg_classes=1` to skip one-hot encoding and return the mask as is.
+
+    Args
+    ----
+        maskpath : str | Path
+            Path to the mask .png.
+
+        seg_classes : int
+            Number of channels in the segmentation mask
+
+    Returns
+    -------
+        mask : np.ndarray
+            - If `seg_classes > 1`:  One-hot encoded mask with shape (H, W, seg_classes). 
+            - If `seg_classes == 1`: Mask with shape (H, W, 1).
+
+    Raises
+    ------
+        FileNotFoundError
+            If the mask file does not exist.
+
+        ValueError
+            If the mask shape is not 2D.
+    """
     
-    def setup(self):
-        if self.num_gpu > 1:
-            os.environ["MASTER_ADDR"] = self.master_addr
-            os.environ["MASTER_PORT"] = self.master_port
+    mask = cv2.imread(str(maskpath), cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        FileNotFoundError(f"Input path {maskpath} does not exist or is not a file.")
 
-            self.device = self.gpu_list[self.rank]
-            torch.cuda.set_device(self.device)
-            init_process_group(backend="nccl", rank=self.rank, world_size=self.num_gpu)
-        else:
-            self.device = self.rank
+    if mask.ndim != 2:
+        raise ValueError(f"Unsupported mask shape: {mask.shape}. Expected a 2D mask.")
 
-    def cleanup(self):
-        if self.num_gpu > 1:
-            destroy_process_group()
-
-    def load_model(self):
-        model = UNet()
-    
-        # if (self.load_layers and self.weights):
-        #     pretrained = torch.load(f"{self.mdl_dir}/{self.weights}.pth")
-        #     for layer_name in self.load_layers:
-        #         layer = getattr(model, layer_name)
-        #         state_dict = {k.replace(f"{layer_name}.", ""): v for k, v in pretrained.items() if k.startswith(layer_name)}
-        #         layer.load_state_dict(state_dict)
-        
-        if self.weights:
-            checkpoint = torch.load(self.mdl_dir / f"{self.weights}.pth")
-            model.load_state_dict(checkpoint, strict=False)      
-        if self.freeze_layers:
-            for layer_name in self.freeze_layers:
-                layer = getattr(model, layer_name)
-                for param in layer.parameters():
-                    param.requires_grad = False
-
-        if self.num_gpu > 1:
-            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-            model = DDP(model.to('cuda'), 
-                        device_ids=[self.device], 
-                        find_unused_parameters=False)
-        else:
-            model = model.to(self.device)
-
-def initModel(gpu_id):
-    model = UNet()
-    if CONF.NUM_GPU > 1:
-        model = model.to('cuda')
-        model = DDP(model, device_ids=[gpu_id], find_unused_parameters=True)
+    if seg_classes > 1:
+        return np.eye((seg_classes), dtype=np.uint8)[mask] # 1Hot; shape: (H, W) → (H, W, C)
     else:
-        model = model.to(gpu_id)
-
-    return model
-
-def gather_metrics(metrics: dict) -> dict:
-    for metric, value in metrics.items():
-        AvgAccLst = [torch.zeros_like(value) for _ in range(CONF.NUM_GPU)]
-        all_gather(AvgAccLst, value)
-        value = np.round(torch.nanmean(torch.stack(AvgAccLst)).item(), 4)
-        metrics[metric] = value
-    return metrics
+        return mask[..., None] # shape: (H, W) → (H, W, 1)
 
 
-def get_channel_dims(in_c, fdepth, ldepth):
-    arr = (ldepth-1) - np.abs(np.arange(-(ldepth-1), 5))
-    channels = [int(fdepth*(2**i)) for i in arr]
-    out_c = channels + [in_c]
-    in_c = [in_c] + channels
-    channels = np.vstack((in_c, out_c)).T
-    return channels
+def load_sdm(sdmpath: Path, mask_shape: tuple[int, ...]) -> np.ndarray:
+    """
+    Loads a Signed Distance Map from the specified file path.
+    If the given path does not exist, it is assumed that the mask with the 
+    corresponding ID has no class-to-class boundaries. In such cases, a zero-filled SDM 
+    with the provided `mask_shape` is returned.
+
+    Args
+    ----
+        sdmpath : Path
+            Path to the SDM .npy file.
+
+        mask_shape : tuple[int, ...] (H, W, C)
+            Shape of the mask to create an empty SDM if the file does not exist.
+            
+    Returns
+    -------
+        sdm: np.ndarray (H, W, C)
+            - Loaded SDM if file exists.
+            - Zeros SDM if file does not exist.
+
+    Raises
+    ------
+        ValueError
+            If `mask_shape` does not conform to (H, W, C).
+    """
+
+    if sdmpath.exists():
+        return np.load(str(sdmpath))
+    else:
+        if len(mask_shape) != 3:
+            raise ValueError(f"Expected mask_shape to have exactly 3 dimensions (H, W, C); got {mask_shape} instead.")
+
+        return np.zeros((*mask_shape[:-1], 1))
 
 
-# def longest_edge_filter(mask_tensor):
+def logits_to_msk(logits, mode: str) -> torch.Tensor:
+    """
+    Converts models segmentation logits to a segmentation mask based on the specified mode.
 
-#     def process_mask(mask):
-#         edges, _ = ndimage.label(mask)
-#         edge_len = np.bincount(edges.ravel())
-#         edge_len[0] = 0
-#         longest_edge_label = np.argmax(edge_len)
-#         return (edges == longest_edge_label).astype(int)
-    
-#     mask_array = mask_tensor.detach().cpu().numpy()[:, 0]
-#     vectorized_process = np.vectorize(process_mask, signature='(m,n)->(m,n)')
-#     edges_array = vectorized_process(mask_array)
-#     edge_tensor = torch.tensor(edges_array, device=mask_tensor.device).unsqueeze(1)
-#     return edge_tensor
+    Args
+    ----
+        logits : torch.Tensor (B, C, H, W)
+            Model output logits from segmentation branch.
+
+        mode : str
+            Mode for converting logits to mask:
+            - `1hot`:    One-hot encoding (X ∈ {0, 1}); non-differentiable.
+            - `softmax`: Probability distribution (X ∈ [0; 1]); differentiable.
+            - `argmax`:  Pixel-to-class (X ∈ {0, 1, ..., seg_classes}); non-differentiable.
+
+    Returns
+    -------
+        pd_mask : torch.Tensor
+            Segmentation mask after applying the specified mode.
+            - If mode is `1hot`, shape: (B, C, H, W)
+            - If mode is `softmax`, shape: (B, C, H, W)
+            - If mode is `argmax`, shape: (B, 1, H, W)
+    """
+
+    if mode == '1hot':
+        # 𝑿 ∈ {0, 1}; shape: (B, C, H, W)
+        topk = logits.argmax(dim=1, keepdim=True)     
+        pd_mask = torch.zeros_like(logits).scatter_(1, topk, 1.0)
+    elif mode == 'prob':
+        # 𝑿 ∈ [0; 1]; shape: (B, C, H, W)
+        pd_mask = F.softmax(logits, dim=1)
+    else: # argmax
+        # 𝑿 ∈ {0, 1, ..., seg_classes}; shape: (B, 1, H, W)
+        pd_mask = logits.argmax(dim=1, keepdim=True)
+
+    return pd_mask
 
 
-# def save_intermediate_masks(logits, gt_mask, source, epoch):
+def logits_to_lbl(logits,
+                  cls_threshold: float | None,
+                  ) -> torch.Tensor:
+    """
+    Converts model classification logits to class labels based on the specified threshold.
 
-#     if epoch == CONF.WARMUP_EPOCHS + 1:
-#         source = torch.split(source, 1, dim=0)
-#         gt_mask = torch.split(gt_mask, 1, dim=0)
-#         for  i, (sc, gt) in enumerate(zip(source, gt_mask)):
-#             sc = sc[0][0].detach().cpu().numpy()
-#             gt = gt[0][0].detach().cpu().numpy()
+    Args
+    ----
+        logits : torch.Tensor (B, C)
+            Model output logits from classification branch.
 
-#             cv2.imwrite(f"{CONF.OUTPUT_PATH}/masks/im_{i}.png", sc * 255)
-#             cv2.imwrite(f"{CONF.OUTPUT_PATH}/masks/gt_{i}.png", gt * 255)
-#     else:
-#         pred_mask = torch.relu(torch.sign(torch.sigmoid(logits)-CONF.THRESHOLD))
-#         pred_mask = torch.split(pred_mask, 1, dim=0)
-#         for  i, pd in enumerate(pred_mask):
-#             pd = pd[0][0].detach().cpu().numpy()
-#             cv2.imwrite(f"{CONF.OUTPUT_PATH}/masks/{i}.png", pd * 255)
+        cls_threshold : float | None
+            Threshold for classifying logits into labels.
+            If the maximum probability is below this threshold, the label is set to `C - 1`, i.e. boundary class.
+            If `None`, the argmax of the logits is used to determine the class labels.
+
+    Returns
+    -------
+        pd_cls : torch.Tensor (B,)
+            Predicted class labels based on the logits and threshold.
+            - If `cls_threshold` is not None, uses the threshold to determine class labels.
+            - Otherwise, uses argmax to determine class labels.
+    """
+
+    B, C = logits.shape
+
+    # Convert logits to probabilities
+    cls_probs = F.softmax(logits, dim=1)
+
+    # Apply thresholding to determine class labels
+    if cls_threshold:
+        max_probs, max_lbls = cls_probs.max(dim=1)   
+        pd_cls = torch.where(max_probs > cls_threshold,
+                             max_lbls,
+                             torch.full_like(max_lbls, C - 1))
+        
+    # Simply use the highest probability class
+    else:
+        pd_cls = cls_probs.argmax(dim=1)
+
+    return pd_cls
+
+
+def gather_tensors(tensor_dict: dict[str, torch.Tensor],
+                   worldsize: int
+                   ) -> dict[str, torch.Tensor]:
+    """
+    Gathers tensor values from all GPUs and averages them.
+
+    Args
+    ----
+        tensor_dict : dict[str, torch.Tensor]
+            Dictionary of tensor values (e.g., losses or metrics) per GPU.
+
+        worldsize : int
+            Number of processes (GPUs) in the distributed training.
+
+    Returns
+    -------
+        tensor_dict : dict[str, torch.Tensor]
+            Dictionary of averaged tensor values.
+    """
+    for name, tensor in tensor_dict.items():
+        avgLst = [torch.zeros_like(tensor) for _ in range(worldsize)]
+        all_gather(avgLst, tensor)
+        tensor_dict[name] = torch.stack(avgLst).nanmean()
+    return tensor_dict
+
+
+def setup_dirs(cfg: Config):
+    """
+    Create necessary directories for the experiment based on the configuration.
+
+    Args
+    ----
+        cfg : Config
+            Configuration object containing paths and settings.
+    """
+    cfg.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    if cfg.LOG_LOCAL or cfg.LOG_WANDB or cfg.SAVE_MODEL:
+        cfg.EXP_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def remap_to_sorted_indices(arr: np.ndarray) -> np.ndarray:
+    """
+    Replace each value in `a` by its index in the sorted list of uniques.
+    Example: [0, 7, 100, 245] -> [0, 1, 2, 3]
+    """
+    _, inv = np.unique(arr, return_inverse=True)
+    return inv.reshape(arr.shape)
+
+def save_predictions(maskpath: Path, 
+                     masks: torch.Tensor, 
+                     ids: list[str]):
+    """
+    Save model predictions to the specified directory.
+
+    Args
+    ----
+        maskpath : Path
+            Path to the directory where masks will be saved.
+
+        outputs : torch.Tensor (B, C, H, W)
+            Model output logits tensor.
+
+        ids : list[str]
+            List of image IDs corresponding to the outputs.
+    """
+
+    for mask, id in zip(masks, ids):
+        save_path = str(maskpath / f"{id}.png")
+
+        mask = mask.cpu().numpy().transpose(1, 2, 0)  # (C, H, W) → (H, W, C)
+        mask_8bit = (mask * 255).astype(np.uint8)     # Convert to 8-bit format
+
+        cv2.imwrite(save_path, mask_8bit)
+
