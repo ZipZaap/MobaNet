@@ -60,7 +60,7 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 │   ├───dataset.py ---------------------- # PyTorch DataLoader class; also handles train/test split
 │   ├───loggers.py ---------------------- # Tools for experiment tracking
 │   ├───sdf.py -------------------------- # Tools for calculating the Signed Distane Function
-│   └───util.py ------------------------- # Model loading, process-to-device allocation & misc functions
+│   └───util.py ------------------------- # Model loading, device allocation & misc functions
 |
 ├───main.py ----------------------------- # Main executable
 ├───requirements.yml -------------------- # Core dependencies
