@@ -42,7 +42,7 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 ```graphql
 ├───configs/
 │   ├──config.yaml ---------------------- # File with default parameters
-│   ├──config_parser.py ----------------- # Defines Config() class which stores the defaults
+│   ├──cfg_parser.py ----------------- # Defines Config() class which stores the defaults
 │   └──validator.py --------------------- # Defines validation logic
 |
 ├───engines/
@@ -57,7 +57,7 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 │   └──tts.json ------------------------- # Train-test-split dictionary of image IDs
 │
 ├───utils/
-│   ├───dataset.py ---------------------- # PyTorch DataLoader class; also handles train/test split & image augmentation
+│   ├───dataset.py ---------------------- # PyTorch DataLoader class; also handles train/test split
 │   ├───loggers.py ---------------------- # Tools for experiment tracking
 │   ├───sdf.py -------------------------- # Tools for calculating the Signed Distane Function
 │   └───util.py ------------------------- # Model loading, process-to-device allocation & misc functions
