@@ -98,18 +98,21 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 
 ### Dataset
 
-#### folders
+This repository expects the user to organize his training/testing data according to a pre-defined structure displayed below. The user must also replace the `DATASET_DIR` variable in the [config.yaml](configs/config.yaml) with the appropriate path to their custom `dataset/`. For training: both `train/images` and `train/masks` have to exist and contain valid `.png` files. For inference: only `predict/images` has to exist and contain valid `.png` files. The rest of the infrastrature including `sdms/` & `labels.json` is generated automatically at runtime.
+
+#### folder layout
 
 ```graphql
-├───train/
-│   ├──images/ ---------------------- # Image tiles in .png format
-│   ├──masks/ ----------------------- # Indexed masks in .png format
-│   ├──sdms/ ------------------------ # Signed Distance Maps in .npy format 
-│   └──labels.json ------------------ # File containing class labels 
-|
-└───predict/
-    ├───images/ --------------------- # Images to run inference on
-    └───masks/ ---------------------- # Predicted masks
+dataset/
+   ├───train/
+   │   ├──images/ ---------------------- # Image tiles in .png format
+   │   ├──masks/ ----------------------- # Indexed masks in .png format
+   │   ├──sdms/ ------------------------ # Signed Distance Maps in .npy format 
+   │   └──labels.json ------------------ # File containing class labels 
+   |
+   └───predict/
+       ├───images/ --------------------- # Images to run inference on
+       └───masks/ ---------------------- # Predicted masks
 ```
 
 #### labels.json
@@ -131,9 +134,6 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
    }
 }
 ```
-
-> [!IMPORTANT]
-> Both `train/images` and `train/masks` have to exist and contain valid `.png` files. The rest of the infrastrature including `sdms/` & `labels.json` is generated automatically at runtime.
 
 ## :brain: Network architechture
 
