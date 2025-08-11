@@ -39,11 +39,12 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 
     ```console
     (base) foo@bar:~$ conda create --name moba python=3.11
-    (moba) foo@bar:~$ conda activate moba
+    (base) foo@bar:~$ conda activate moba
+    (moba) foo@bar:~$ 
     ```
 
 3. Install the latest PyTorch version and make sure it is cuda-enabled. Choose the cuda version supported by your GPU.
-   This step is done fisrt and independently to make sure that PyTorch doesn't default to a CPU install:
+   This step is done fisrt and independently to make sure that PyTorch doesn't default to a CPU install.
 
     ```console
     (moba) foo@bar:~$ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
@@ -95,7 +96,9 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 > [!NOTE]
 > Folders for storing experiment tracking data are indexed and created automatically in the `saved/` folder.
 
-### Data-folder structure
+### Dataset
+
+#### folders
 
 ```graphql
 ├───train/
@@ -107,6 +110,26 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 └───predict/
     ├───images/ --------------------- # Images to run inference on
     └───masks/ ---------------------- # Predicted masks
+```
+
+#### labels.json
+
+```json
+{
+   'id_to_label': {
+      0 : ['id_0', ..., 'id_a'],
+      1 : ['id_1', ..., 'id_b'],
+      2 : ['id_2', ..., 'id_c']
+   }
+   'label_to_id':{
+      'id_0': 0,
+      'id_1': 1,
+      'id_2': 2,
+      'id_a': 0,
+      'id_b': 1,
+      'id_c': 2
+   }
+}
 ```
 
 > [!IMPORTANT]
