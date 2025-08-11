@@ -11,16 +11,19 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
    * Enables boundary-aware losses during decoder training.
    * Produces uniform masks for single-class tiles.
 
-2. **GPU-accelerated Signed Distance Transform (SDT) approximation**  
+2. **Input flexibility**
+   Our approach supports both grayscale *and* color images, as well as multi-class masks.
+
+3. **GPU-accelerated Signed Distance Transform (SDT) approximation**  
    Metrics such as Average Symmetric Surface Distance (ASD) and Hausdorff Distance 95th percentile (HD95) rely on Signed Distance Maps (SDMs) computed at every epoch. Traditional pipelines push tensors back to the CPU and call SciPy - which is slow and communication-heavy (especially on multi-GPU setups). Our PyTorch-only implementation uses cascaded convolutions, runs on batched data entirely on the GPU, and scales seamlessly with Distributed Data Parallel (DDP).
 
-3. **A variety of loss function**  
+4. **A variety of loss function**  
    Pick from pixel-level, region-level, or boundary-aware losses or combine several. You can assign fixed or *learnable* weights to each component, letting you prioritise contour accuracy, global IoU, or any balance in between.
 
-4. **Distributed training**  
+5. **Distributed training**  
    Native Distributed Data Parallel (DDP) support enables the use of multiple GPUs for both training and Signed Distane Map (SDM) calculations.
 
-5. **Local & cloud logging**  
+6. **Local & cloud logging**  
    Monitor progress with detailed console output, JSON logs, and optional Weights & Biases integration for remote experiment tracking.
 
 ## :rocket: Getting Started
@@ -31,7 +34,20 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
     git clone https://github.com/ZipZaap/AuxNet.git
     ```
 
-2. Create a virtual envirnement & install the required dependencies
+2. Create a virtual environment & activate it
+
+    ```bash
+    conda create --name mobanet python=3.11
+    conda activate mobanet
+    ```
+
+3. Install the latest PyTorch version and make sure it is cuda-enabled:
+
+    ```bash
+    pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+    ```
+
+4. Create a virtual envirnement & install the required dependencies
 
     ```bash
     conda env create -f requirements.yml
@@ -90,7 +106,7 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 ```
 
 > [!IMPORTANT]
-> Both *train/images* and *train/masks* have to exist and contain valid .png files. The rest of the infrastrature including *sdms/* & *labels.json* is generated automatically at runtime.
+> Both `train/images` and `train/masks` have to exist and contain valid `.png` files. The rest of the infrastrature including `sdms/` & `labels.json` is generated automatically at runtime.
 
 ## :brain: Network architechture
 
