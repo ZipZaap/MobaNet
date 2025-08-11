@@ -96,12 +96,12 @@ README.md
 
 ## :bar_chart: Dataset
 
-This repository expects the training/testing data in the following format. Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
+This repository expects the training/testing to be organized in the pre-defined manner described below. Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
 
-* **For Training**:  `train/images` and `train/masks` **must** exist and contain valid `.png` files.
+* **For Training**:  `train/images` and `train/masks` must exist and contain valid `.png` files.
 * **For Inference**:  only `predict/images` is required with valid `.png` files.
 
-All other assets (`sdms/` and `labels.json`) are generated automatically at runtime.
+> All other assets (`train/sdms/`, `predict/masks/` & `labels.json`) are generated automatically at runtime.
 
 ```graphql
 dataset/
@@ -117,6 +117,8 @@ dataset/
 ```
 
 ### Example `labels.json`
+
+
 
 ```yaml
 {
