@@ -93,7 +93,7 @@ README.md
 
 ## :bar_chart: Dataset
 
-This repository expects the training/testing to be organized in the pre-defined manner described below. Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
+This repository expects the training/testing dat to be organized in the pre-defined manner described below. Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
 
 * **For Training**:  `train/images` and `train/masks` must exist and contain valid `.png` files.
 * **For Inference**:  only `predict/images` is required with valid `.png` files.
@@ -160,7 +160,7 @@ The library ships with a self-contained, GPU-friendly collection of segmentation
 
 ### Run options
 
-All configurable options, sensible defaults, and variable types are defined in the [config.yaml](configs/config.yaml) file. This file serves as the primary interface for users to customize and tailor the network to their specific needs. Before training begins, the configuration is loaded and validated by the `Validator` method. This method performs pred-defined checks to ensure consistency and prevent conflicts between parameters. This helps catch potential issues early, reducing the likelihood of unexpected behaviors during execution.
+All configurable options, sensible defaults, and variable types are defined in the [config.yaml](configs/config.yaml) file. This file serves as the primary interface for users to customize and tailor the network to their specific needs. Before training begins, the configuration is loaded and validated by the `Validator` method. This method performs pre-defined checks to ensure consistency and prevent conflicts between parameters. This helps catch potential issues early, reducing the likelihood of unexpected behaviors during execution.
 
 <details>
    <summary> Parameter breakdown </summary>
@@ -179,8 +179,8 @@ All configurable options, sensible defaults, and variable types are defined in t
    || `DEFAULT_FOLD` | `int` | Fold to use when CV is disabled. |
    || `NUM_WORKERS` | `int` | Number of subprocesses used by PyTorch `DataLoader`. If set to 0, data loading occurs in the main process. |
    | **Model** |--------------------------|-------|--------------------------------------------------------------|
-   || `MODEL` | `str` | The user can either train the entire model end-to-end in a single run, or train each component separately, using dedicated datasets and loss functions for each part. Available options: <br>• `MobaNet-ED`: Multi-output UNet with trainable Encoder & Decoder. <br> • `MobaNet-EDC`: Multi-output UNet with trainable Encoder, Decoder & Classification head.<br>• `MobaNet-C`: Multi-output UNet with trainable Classification head.<br>• `MobaNet-D`: Multi-output UNet with trainable Decoder.<br>• `UNet`: Standard U-Net architecture.  |
-   || `MODEL_WEIGHTS` | `str` | Pre-trained weights filename (omit `.pth`). The user can preload weights from the previous run (e.g. `MODEL = MobaNet-ED`) and then train the Classifier separately by setting `MODEL = MobaNet-C`.|
+   || `MODEL` | `str` | The user can either train the entire model end-to-end in a single run, or train each component separately, using dedicated datasets and loss functions for each part: <br>• `MobaNet-ED`: multi-output UNet with trainable Encoder & Decoder. <br> • `MobaNet-EDC`: multi-output UNet with trainable Encoder, Decoder & Classification head.<br>• `MobaNet-C`: multi-output UNet with trainable Classification head.<br>• `MobaNet-D`: multi-output UNet with trainable Decoder.<br>• `UNet`: standard U-Net architecture.  |
+   || `CHECKPOINT` | `str` | Path to the checkpoint file containing pre-trained weights. <br>• When running `training`:  training will start from this checkpoint, unless `CHECKPOINT` is set to `null`. <br>• When running `inference`: predictions will be made using this checkpoint; Has to be set to a valid path|
    || `INPUT_SIZE` | `int` | Input image side length (pixels). |
    || `INPUT_CHANNELS` | `int` | Number of image channels. |
    || `UNET_DEPTH` | `int` | Number of down-sampling levels in a UNet (incl. bottleneck). |
