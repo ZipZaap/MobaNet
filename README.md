@@ -64,43 +64,48 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 
 ```graphql
 configs/
-│   ├──config.yaml ------------------ # File with default parameters
-│   ├──cfgparser.py ----------------- # Defines Config() class which stores the defaults
-│   ├──cli.py ----------------------- # Defines a basic Command Line Interface
-│   └──validator.py ----------------- # Defines validation logic
+│   ├──config.yaml ------------------ # Default parameters
+│   ├──cfgparser.py ----------------- # Config() class which stores the defaults
+│   ├──cli.py ----------------------- # Basic command-line interface
+│   └──validator.py ----------------- # Validation logic
 |
 engines/
-│   └──SegTrainer.py----------------- # Defines the main training loop
+│   └──SegTrainer.py----------------- # Main training loop
 |
 model/
 │   ├───MobaNet.py ------------------ # PyTorch model architechture 
-│   ├───loss.py --------------------- # Collection of loss functions used for training
-│   └───metrics.py ------------------ # Collection of metrics used for evaluation
+│   ├───loss.py --------------------- # Loss functions for training
+│   └───metrics.py ------------------ # Evaluation metrics
 │
 saved/
-│   └──tts.json --------------------- # Train-test-split dictionary of image IDs
+│   └──tts.json --------------------- # Train/test split dictionary of image IDs
 │
 utils/
-│   ├───dataset.py ------------------ # PyTorch DataLoader class; also handles train/test split
-│   ├───loggers.py ------------------ # Tools for experiment tracking
-│   ├───managers.py ----------------- # Model loading, device allocation & process management
-│   ├───sdf.py ---------------------- # Tools for calculating the Signed Distane Map
+│   ├───dataset.py ------------------ # PyTorch DataLoaders + train/test split logic
+│   ├───loggers.py ------------------ # Experiment tracking tools
+│   ├───managers.py ----------------- # Model loading, device allocation & process mgmt
+│   ├───sdf.py ---------------------- # Signed Distance Map utilities
 │   └───util.py --------------------- # Misc helper functions
 |
-train.py ---------------------------- # Main training executable
-predict.py -------------------------- # Main inference executable
-requirements.yml -------------------- # Core dependencies
+train.py ---------------------------- # Training entry point
+predict.py -------------------------- # Inference entry point
+requirements.yml -------------------- # Dependencies
 README.md
 ```
 
 > [!NOTE]
-> Folders for storing experiment tracking data are indexed and created automatically in the `saved/` folder.
+> Experiment tracking folders are auto-created in `saved/` during runtime
 
 ### Dataset
 
-This repository expects the user to organize his training/testing data according to a pre-defined structure displayed below. The user must also replace the `DATASET_DIR` variable in the [config.yaml](configs/config.yaml) with the appropriate path to their custom `dataset/`. For training: both `train/images` and `train/masks` have to exist and contain valid `.png` files. For inference: only `predict/images` has to exist and contain valid `.png` files. The rest of the infrastrature including `sdms/` & `labels.json` is generated automatically at runtime.
+This repository expects the training/testing data in the following format.
 
-#### folder layout
+Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
+
+ - **For Training**:  `train/images` and `train/masks` **must** exist and contain valid `.png` files.
+ - **For Inference**:  only `predict/images` is required with valid `.png` files.
+
+All other assets (`sdms/` and `labels.json`) are generated automatically at runtime.
 
 ```graphql
 dataset/
@@ -115,7 +120,7 @@ dataset/
        └───masks/ ---------------------- # Predicted masks
 ```
 
-#### labels.json
+#### Example `labels.json`
 
 ```yaml
 {
