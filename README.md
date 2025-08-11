@@ -30,8 +30,8 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 
 1. Clone the repository:
 
-    ```bash
-    git clone https://github.com/ZipZaap/AuxNet.git
+    ```console
+    foo@bar:~$ git clone https://github.com/ZipZaap/AuxNet.git
     ```
 
 2. Create a virtual environment & activate it
