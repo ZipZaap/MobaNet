@@ -31,27 +31,30 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 1. Clone the repository:
 
     ```console
-    foo@bar:~$ git clone https://github.com/ZipZaap/AuxNet.git
-    sdsaf as saf sf asf 
+    (base) foo@bar:~$ git clone https://github.com/ZipZaap/AuxNet.git
+    (base) foo@bar:~$ cd AuxNet
     ```
 
 2. Create a virtual environment & activate it
 
-    ```bash
-    conda create --name mobanet python=3.11
-    conda activate mobanet
+    ```console
+    (base) foo@bar:~$ conda create --name moba python=3.11
+    (moba) foo@bar:~$ conda activate moba
     ```
 
-3. Install the latest PyTorch version and make sure it is cuda-enabled:
+3. Install the latest PyTorch version and make sure it is cuda-enabled. Choose the cuda version supported by your GPU.
+   This step is done fisrt and independently to make sure that PyTorch doesn't default to a CPU install:
 
-    ```bash
-    pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+    ```console
+    (moba) foo@bar:~$ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+    (moba) foo@bar:~$ python -c "import torch; print(torch.cuda.is_available())"
+    True
     ```
 
-4. Create a virtual envirnement & install the required dependencies
+4. Update your virtual environment with the remaining dependencies
 
-    ```bash
-    conda env create -f requirements.yml
+    ```console
+    (moba) foo@bar:~$ conda env update -f requirements.yml
     ```
 
 ## :open_file_folder: Files and folders
