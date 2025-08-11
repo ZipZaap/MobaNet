@@ -37,19 +37,22 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
     conda env create -f requirements.yml
     ```
 
-## :open_file_folder: Repository Structure
+## :open_file_folder: Files and folders
+
+### Repository structure
 
 ```graphql
 ├───configs/
 │   ├──config.yaml ---------------------- # File with default parameters
-│   ├──cfg_parser.py ----------------- # Defines Config() class which stores the defaults
+│   ├──cfgparser.py --------------------- # Defines Config() class which stores the defaults
+│   ├──cli.py --------------------------- # Defines a basic Command Line Interface
 │   └──validator.py --------------------- # Defines validation logic
 |
 ├───engines/
 │   └──SegTrainer.py--------------------- # Defines the main training loop
 |
 ├───model/
-│   ├───AuxNet.py ----------------------- # PyTorch model architechture 
+│   ├───MobaNet.py ---------------------- # PyTorch model architechture 
 │   ├───loss.py ------------------------- # Collection of loss functions used for training
 │   └───metrics.py ---------------------- # Collection of metrics used for evaluation
 │
@@ -59,16 +62,35 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 ├───utils/
 │   ├───dataset.py ---------------------- # PyTorch DataLoader class; also handles train/test split
 │   ├───loggers.py ---------------------- # Tools for experiment tracking
-│   ├───sdf.py -------------------------- # Tools for calculating the Signed Distane Function
-│   └───util.py ------------------------- # Model loading, device allocation & misc functions
+│   ├───managers.py --------------------- # Model loading, device allocation & process management
+│   ├───sdf.py -------------------------- # Tools for calculating the Signed Distane Map
+│   └───util.py ------------------------- # Misc helper functions
 |
-├───main.py ----------------------------- # Main executable
+├───train.py ---------------------------- # Main training executable
+├───predict.py -------------------------- # Main inference executable
 ├───requirements.yml -------------------- # Core dependencies
 └───README.md
 ```
 
 > [!NOTE]
 > Folders for storing experiment tracking data are indexed and created automatically in the `saved/` folder.
+
+### Data-folder structure
+
+```graphql
+├───train/
+│   ├──images/ ---------------------- # Image tiles in .png format
+│   ├──masks/ ----------------------- # Indexed masks in .png format
+│   ├──sdms/ ------------------------ # Signed Distance Maps in .npy format 
+│   └──labels.json ------------------ # File containing class labels 
+|
+└───predict/
+    ├───images/ --------------------- # Images to run inference on
+    └───masks/ ---------------------- # Predicted masks
+```
+
+> [!IMPORTANT]
+> Both *train/images* and *train/masks* have to exist and contain valid .png files. The rest of the infrastrature including *sdms/* & *labels.json* is generated automatically at runtime.
 
 ## :brain: Network architechture
 
