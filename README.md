@@ -118,7 +118,12 @@ dataset/
 
 ### Example `labels.json`
 
+Each *image_ID* is assigned a class based on the dominant label in its corresponding mask.
 
+* If a single class occupies the majority of the mask, that class label is assigned to the image.
+* If no single class dominates (e.g., the image contains significant class-to-class transitions), the boundary class is assigned instead.
+
+> For an **N-class** segmentation task, there are **N + 1** possible labels in total, where the extra class (**N + 1**) is reserved for images/masks that contain class-to-class boundaries.
 
 ```yaml
 {
