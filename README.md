@@ -11,19 +11,16 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
    * Enables boundary-aware losses during decoder training.
    * Produces uniform masks for single-class tiles.
 
-2. **Input flexibility**
-   Our approach supports both grayscale *and* color images, as well as multi-class masks.
-
-3. **GPU-accelerated Signed Distance Transform (SDT) approximation**  
+2. **GPU-accelerated Signed Distance Transform (SDT) approximation**  
    Metrics such as Average Symmetric Surface Distance (ASD) and Hausdorff Distance 95th percentile (HD95) rely on Signed Distance Maps (SDMs) computed at every epoch. Traditional pipelines push tensors back to the CPU and call SciPy - which is slow and communication-heavy (especially on multi-GPU setups). Our PyTorch-only implementation uses cascaded convolutions, runs on batched data entirely on the GPU, and scales seamlessly with Distributed Data Parallel (DDP).
 
-4. **A variety of loss function**  
+3. **A variety of loss function**  
    Pick from pixel-level, region-level, or boundary-aware losses or combine several. You can assign fixed or *learnable* weights to each component, letting you prioritise contour accuracy, global IoU, or any balance in between.
 
-5. **Distributed training**  
+4. **Distributed training**  
    Native Distributed Data Parallel (DDP) support enables the use of multiple GPUs for both training and Signed Distane Map (SDM) calculations.
 
-6. **Local & cloud logging**  
+5. **Local & cloud logging**  
    Monitor progress with detailed console output, JSON logs, and optional Weights & Biases integration for remote experiment tracking.
 
 ## :rocket: Getting Started
@@ -182,8 +179,8 @@ All configurable options, sensible defaults, and variable types are defined in t
    || `DEFAULT_FOLD` | `int` | Fold to use when CV is disabled. |
    || `NUM_WORKERS` | `int` | Number of subprocesses used by PyTorch `DataLoader`. If set to 0, data loading occurs in the main process. |
    | **Model** |--------------------------|-------|--------------------------------------------------------------|
-   || `MODEL` | `str` | The user can either train the entire model end-to-end in a single run, or train each component separately, using dedicated datasets and loss functions for each part. Available options: <br>• `AuxNet-ED`: Multi-output UNet with trainable Encoder & Decoder. <br> • `AuxNet-EDC`: Multi-output UNet with trainable Encoder, Decoder & Classification head.<br>• `AuxNet-C`: Multi-output UNet with trainable Classification head.<br>• `AuxNet-D`: Multi-output UNet with trainable Decoder.<br>• `UNet`: Standard U-Net architecture.  |
-   || `MODEL_WEIGHTS` | `str` | Pre-trained weights filename (omit `.pth`). The user can preload weights from the previous run (e.g. `MODEL = AuxNet-ED`) and then train the Classifier separately by setting `MODEL = AuxNet-C`.|
+   || `MODEL` | `str` | The user can either train the entire model end-to-end in a single run, or train each component separately, using dedicated datasets and loss functions for each part. Available options: <br>• `MobaNet-ED`: Multi-output UNet with trainable Encoder & Decoder. <br> • `MobaNet-EDC`: Multi-output UNet with trainable Encoder, Decoder & Classification head.<br>• `MobaNet-C`: Multi-output UNet with trainable Classification head.<br>• `MobaNet-D`: Multi-output UNet with trainable Decoder.<br>• `UNet`: Standard U-Net architecture.  |
+   || `MODEL_WEIGHTS` | `str` | Pre-trained weights filename (omit `.pth`). The user can preload weights from the previous run (e.g. `MODEL = MobaNet-ED`) and then train the Classifier separately by setting `MODEL = MobaNet-C`.|
    || `INPUT_SIZE` | `int` | Input image side length (pixels). |
    || `INPUT_CHANNELS` | `int` | Number of image channels. |
    || `UNET_DEPTH` | `int` | Number of down-sampling levels in a UNet (incl. bottleneck). |
@@ -192,7 +189,6 @@ All configurable options, sensible defaults, and variable types are defined in t
    | **Segmentation** |--------------------------|-------|--------------------------------------------------------------|
    || `SEG_CLASSES` | `int` | Number of segmentation classes. |
    || `SEG_DROPOUT` | `float` | Dropout for encoder/decoder. |
-   || `SEG_THRESHOLD` | `float` | Mask binarisation threshold. |
    | **Classification** |--------------------------|-------|--------------------------------------------------------------|
    || `CLS_CLASSES` | `int` | Number of classification classes. |
    || `CLS_DROPOUT` | `float` | Dropout in classification head. |
@@ -207,9 +203,10 @@ All configurable options, sensible defaults, and variable types are defined in t
    || `SDM_KERNEL_SIZE` | `int` | Kernel size for SDM estimation. |
    || `SDM_DISTANCE` | `str` | Type of distance used for the SDM. Available options: `manhattan`, `chebyshev`, `euclidean`. |
    || `SDM_NORMALIZATION` | `str` | SDM normalisation mode.  Available normalization options: <br>•`minmax`: by both max and min distance values of each individual SDM. <br>•`dynamic_max`: by the max distance value of each individual SDM. <br>•`static_max`: by the global max distance value (depends on `SDM_DISTANCE`)|
+   || `SDM_SMOOTHING` | `bool` |  Whether the multi-class SDM is calculated in a smooth or discrete manner |
+   || `SDM_SMOOTHING_ALPHA` | `float` | Smoothing factor for `logsumexp`; only relevant if `SDM_SMOOTHING == True` |
    | **Loss** |--------------------------|-------|--------------------------------------------------------------|
-   || `LOSS` | `str` | Loss function used to train the model. Can either be a single loss or a combination of multiple losses, separated by `_` (e.g., `softDICE_BCE`). Available options: <br>•`SoftDICE`: Soft (probabilistic) DICE loss. <br>•`HardDICE`: Hard (discrete) DICE loss. <br>•`IoU`: Intersection over Union loss. <br>•`BCE`: Binary Cross-Entropy loss. <br>•`wBCE`: SDM Weighted Binary Cross-Entropy loss. <br>•`MAE`: Mean Absolute Error loss. <br>•`cMAE`: Clamped Mean Absolute Error loss. <br>•`sMAE`: Signed Mean Absolute Error loss. <- **OUR CONTRIBUTION** <br>•`Boundary`: Boundary loss. <br>•`CE`: Cross-Entropy loss. |
-   || `INCLUDE_BACKGROUND` | `bool` | Include background class in `DICE`/`IoU`. |
+   || `LOSS` | `str` | Loss function used to train the model. Can either be a single loss or a combination of multiple losses, separated by `_` (e.g., `softDICE_BCE`). Available options: <br>•`SoftDICE`: Soft (probabilistic) DICE loss. <br>•`HardDICE`: Hard (discrete) DICE loss. <br>•`IoU`: Intersection over Union loss. <br>•`SegCE`: Segmentation Cross-Entropy loss. <br>•`wSegCE`: SDM-weighted Segmentation Cross-Entropy loss. <br>•`ClsCE`: Classification Cross-Entropy loss. <br>•`MAE`: Mean Absolute Error loss. <br>•`cMAE`: Clamped Mean Absolute Error loss. <br>•`sMAE`: Signed Mean Absolute Error loss. <- **OUR CONTRIBUTION** <br>•`Boundary`: Boundary loss. |
    || `ADAPTIVE_WEIGHTS` | `bool` | Auto-balance multi-loss components. |
    || `STATIC_WEIGHTS` | `list` | Manual loss weights (if `ADAPTIVE_WEIGHTS = False`). |
    || `CLAMP_DELTA` | `float` | Delta for `cMAE` kernel clamping. Smaller values concentrate the network’s capacity on details near the boundary. |
