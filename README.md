@@ -58,9 +58,7 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
     (moba) foo@bar:~$ conda env update -f requirements.yml
     ```
 
-## :open_file_folder: Files and folders
-
-### Repository structure
+## :open_file_folder: Repository structure
 
 ```graphql
 configs/
@@ -96,14 +94,12 @@ README.md
 > [!NOTE]
 > Experiment tracking folders are auto-created in `saved/` during runtime
 
-### Dataset
+## :bar_chart: Dataset
 
-This repository expects the training/testing data in the following format.
+This repository expects the training/testing data in the following format. Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
 
-Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
-
- - **For Training**:  `train/images` and `train/masks` **must** exist and contain valid `.png` files.
- - **For Inference**:  only `predict/images` is required with valid `.png` files.
+* **For Training**:  `train/images` and `train/masks` **must** exist and contain valid `.png` files.
+* **For Inference**:  only `predict/images` is required with valid `.png` files.
 
 All other assets (`sdms/` and `labels.json`) are generated automatically at runtime.
 
@@ -120,7 +116,7 @@ dataset/
        └───masks/ ---------------------- # Predicted masks
 ```
 
-#### Example `labels.json`
+### Example `labels.json`
 
 ```yaml
 {
