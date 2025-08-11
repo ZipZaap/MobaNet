@@ -63,34 +63,34 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 ### Repository structure
 
 ```graphql
-├───configs/
-│   ├──config.yaml ---------------------- # File with default parameters
-│   ├──cfgparser.py --------------------- # Defines Config() class which stores the defaults
-│   ├──cli.py --------------------------- # Defines a basic Command Line Interface
-│   └──validator.py --------------------- # Defines validation logic
+configs/
+│   ├──config.yaml ------------------ # File with default parameters
+│   ├──cfgparser.py ----------------- # Defines Config() class which stores the defaults
+│   ├──cli.py ----------------------- # Defines a basic Command Line Interface
+│   └──validator.py ----------------- # Defines validation logic
 |
-├───engines/
-│   └──SegTrainer.py--------------------- # Defines the main training loop
+engines/
+│   └──SegTrainer.py----------------- # Defines the main training loop
 |
-├───model/
-│   ├───MobaNet.py ---------------------- # PyTorch model architechture 
-│   ├───loss.py ------------------------- # Collection of loss functions used for training
-│   └───metrics.py ---------------------- # Collection of metrics used for evaluation
+model/
+│   ├───MobaNet.py ------------------ # PyTorch model architechture 
+│   ├───loss.py --------------------- # Collection of loss functions used for training
+│   └───metrics.py ------------------ # Collection of metrics used for evaluation
 │
-├───saved/
-│   └──tts.json ------------------------- # Train-test-split dictionary of image IDs
+saved/
+│   └──tts.json --------------------- # Train-test-split dictionary of image IDs
 │
-├───utils/
-│   ├───dataset.py ---------------------- # PyTorch DataLoader class; also handles train/test split
-│   ├───loggers.py ---------------------- # Tools for experiment tracking
-│   ├───managers.py --------------------- # Model loading, device allocation & process management
-│   ├───sdf.py -------------------------- # Tools for calculating the Signed Distane Map
-│   └───util.py ------------------------- # Misc helper functions
+utils/
+│   ├───dataset.py ------------------ # PyTorch DataLoader class; also handles train/test split
+│   ├───loggers.py ------------------ # Tools for experiment tracking
+│   ├───managers.py ----------------- # Model loading, device allocation & process management
+│   ├───sdf.py ---------------------- # Tools for calculating the Signed Distane Map
+│   └───util.py --------------------- # Misc helper functions
 |
-├───train.py ---------------------------- # Main training executable
-├───predict.py -------------------------- # Main inference executable
-├───requirements.yml -------------------- # Core dependencies
-└───README.md
+train.py ---------------------------- # Main training executable
+predict.py -------------------------- # Main inference executable
+requirements.yml -------------------- # Core dependencies
+README.md
 ```
 
 > [!NOTE]
