@@ -114,14 +114,14 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 
 #### labels.json
 
-```json
+```yaml
 {
    'id_to_label': {
       0 : ['id_0', ..., 'id_a'],
       1 : ['id_1', ..., 'id_b'],
       2 : ['id_2', ..., 'id_c']
-   }
-   'label_to_id':{
+   },
+   'label_to_id': {
       'id_0': 0,
       'id_1': 1,
       'id_2': 2,
