@@ -32,6 +32,7 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 
     ```console
     foo@bar:~$ git clone https://github.com/ZipZaap/AuxNet.git
+    sdsaf as saf sf asf 
     ```
 
 2. Create a virtual environment & activate it
