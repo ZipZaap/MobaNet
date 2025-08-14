@@ -45,7 +45,9 @@ class Predictor:
         else:
             raise ValueError("Checkpoint path is not specified or does not exist.")
 
-    def predict(self, input: str | Path | np.ndarray | torch.Tensor) -> torch.Tensor:
+    def predict(self, 
+                input: str | Path | np.ndarray | torch.Tensor
+                ) -> torch.Tensor:
         """
         Predicts the output for the given input image.
         
@@ -71,8 +73,15 @@ class Predictor:
 
         Example
         -------
+        >>> from configs.cfgparser import Config
+        >>> from predict import Predictor
+
+        >>> cfg = Config('configs/config.yaml', inference=True, cli=False)
         >>> predictor = Predictor(cfg)
-        >>> output = predictor.predict('image.png')
+
+        >>> imID = 'ESP_123456_1234_RED-1234_1234'
+        >>> impath = f'{cfg.IMG_DIR}/{imID}.png'
+        >>> output = predictor.predict(impath)
         """
         
         if isinstance(input, (str, Path)):
@@ -103,7 +112,7 @@ class Predictor:
         
         tensor = tensor.to(self.device)
         with torch.inference_mode():
-            return self.model(tensor)
+            return self.model(tensor)['seg']
 
 def main(cfg: Config):
     """
@@ -113,13 +122,12 @@ def main(cfg: Config):
     ----
         cfg : Config
             Configuration object containing the following attributes:
-            - `.CHECKPOINT` (Path | None): Path to the model checkpoint.
             - `.DEFAULT_DEVICE` (str): Device to use for inference. Automatically set to the first GPU in `cfg.GPUs` list.
             - `.MSK_PATH` (Path): Path to save the predicted masks.
     """
     
     device: str = cfg.DEFAULT_DEVICE
-    maskpath: Path = cfg.MSK_PATH
+    maskpath: Path = cfg.MSK_DIR
 
     model = Predictor(cfg)
     loader = DatasetTools.predict_dataloader(cfg)
@@ -129,12 +137,13 @@ def main(cfg: Config):
         masks = model.predict(images)
         save_predictions(maskpath, masks, ids)
 
-
 if __name__ == "__main__":
     cfg = Config('configs/config.yaml', inference = True, cli=True)
 
     if torch.cuda.is_available():
         main(cfg)
     else:
-        raise RuntimeError('This library requires a GPU with CUDA support. '
-                           'Please verify the PyTorch installation and ensure that a compatible GPU is available.') 
+        raise RuntimeError(
+            'This library requires a GPU with CUDA support. '
+            'Please verify the PyTorch installation and ensure that a compatible GPU is available.'
+        ) 

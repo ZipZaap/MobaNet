@@ -126,7 +126,7 @@ class Config:
         else:
             # ID strings ------------------------------------------------------
             self.EXP_ID = self.EXP_ID if self.EXP_ID else self._exp_id()
-            self.RUN_ID = self.RUN_ID if self.RUN_ID else self.MODEL
+            self.RUN_ID = self.RUN_ID if self.RUN_ID else f"{self.MODEL}_{self.TRAIN_SET_COMPOSITION}"
 
             # Training dataset paths ------------------------------------------
             self.TRAIN_DIR = self.DATASET_DIR / 'train'
@@ -156,8 +156,9 @@ class Config:
 
             # Model-specific settings -----------------------------------------
             model_freeze_layers = {
-                'MobaNet_ED': ['classifier'],
                 'MobaNet_EDC': [],
+                'MobaNet_ED': ['classifier'],
+                'MobaNet_EC': ['decoder'],
                 'MobaNet_C': ['encoder', 'decoder'],
                 'MobaNet_D': ['encoder', 'classifier'],
                 'UNet': [],

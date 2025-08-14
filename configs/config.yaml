@@ -16,12 +16,12 @@ RESULTS_DIR:
 # DATASET PARAMETERS
 # =====================================================
 SEED:
-  default: 42
+  default: 13
   type: int
   help: Random seed for the dataset split.
 
 TRAIN_SET_COMPOSITION: 
-  default: boundary
+  default: full
   type: str
   choices: [full, boundary]
   help: |
@@ -30,7 +30,7 @@ TRAIN_SET_COMPOSITION:
     * boundary: only images containing boundaries
 
 TEST_SET_COMPOSITION:
-  default: boundary
+  default: full
   type: str
   choices: [full, boundary]
   help: |
@@ -39,7 +39,7 @@ TEST_SET_COMPOSITION:
     * boundary: only images containing boundaries.
 
 TEST_SPLIT:
-  default: 0.1
+  default: 0.15
   type: float
   help: Fraction of the dataset to be used as a test set.
 
@@ -62,19 +62,20 @@ NUM_WORKERS:
 # MODEL CONFIGURATION
 # =====================================================
 MODEL: 
-  default: MobaNet_ED
+  default: MobaNet_C
   type: str
-  choices: [MobaNet_ED, MobaNet_EDC, MobaNet_C, MobaNet_D, UNet]
+  choices: [MobaNet_EDC, MobaNet_ED, MobaNet_EC, MobaNet_C, MobaNet_D, UNet]
   help: |
     Type of model to be trained:
-      * MobaNet_ED:  Multi-output UNet with trainable Encoder & Decoder.
-      * MobaNet_EDC: Multi-output UNet with trainable Encoder, Decoder & Classification head.
-      * MobaNet_C:   Multi-output UNet with trainable Classification head
-      * MobaNet_D:   Multi-output UNet with trainable Decoder.
-      * UNet:        Standard U-Net architecture.
+    * MobaNet_EDC: Multi-output UNet with trainable Encoder, Decoder & Classification head.
+    * MobaNet_ED:  Multi-output UNet with trainable Encoder & Decoder.
+    * MobaNet_EC:  Multi-output UNet with trainable Encoder & Classification head.
+    * MobaNet_C:   Multi-output UNet with trainable Classification head.
+    * MobaNet_D:   Multi-output UNet with trainable Decoder.
+    * UNet:        Standard U-Net architecture.
 
 CHECKPOINT:
-  default: saved/exp_0/MobaNet_ED-model.pth
+  default: saved/exp_0/MobaNet_C_full-model.pth
   type: str
   help: |
     Path to the checkpoint file containing pretrained weights.
@@ -203,7 +204,7 @@ SDM_SMOOTHING_ALPHA:
 # LOSS CONFIGURATION
 # =====================================================
 LOSS:
-  default: SoftDICE
+  default: ClsCE
   type: str
   choices: [SoftDICE, HardDICE, IoU, SegCE, wSegCE, ClsCE, MAE, cMAE, sMAE, Boundary]
   help: | 
@@ -257,7 +258,7 @@ EVAL_INTERVAL:
   help: Interval in epochs at which to evaluate the model on the validation set.
 
 EVAL_METRIC:
-  default: DSC
+  default: TTR
   type: str
   choices: ['TTR', 'CMA', 'DSC', 'IoU', 'ASD', 'AD', 'HD95', 'D95']
   help: |
@@ -272,12 +273,12 @@ EVAL_METRIC:
       * CMA:  Combined Mean Accuracy. A weighted combination of the above.
 
 CMA_COEFFICIENTS:
-  default: {'DSC': 1, 'IoU': 1, 'ASD': 1, 'AD': 1, 'HD95': 0, 'D95': 0}
+  default: {'DSC': 1, 'IoU': 1, 'ASD': 0, 'AD': 0, 'HD95': 0, 'D95': 0}
   type: dict
   help: Coefficients that define the contribution of each metric to the overall `CMA`.
 
 DISTANCE_METRICS:
-  default: True
+  default: False
   type: bool
   help: Whether to calculate distance metrics (ASD, AD, HD95, D95) during evaluation.
 
@@ -296,7 +297,7 @@ MASTER_ADDR:
 
 MASTER_PORT:
   default: 12355
-  type: str
+  type: int
   help: Master node port for DDP communication.
 
 NCCL_P2P:

@@ -171,34 +171,43 @@ class MobaNet(nn.Module):
     def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         if self.inference:
 
-            # create an empty mask tensor; (B, 1, H, W)
             B, C, H, W = x.shape
-            seg_mask = torch.zeros((B, 1, H, W), device=x.device)
-           
-            # feed the input through the encoder and classifier
             x, skips = self.encoder(x)
-            cls_logits = self.classifier(x)
-
-            # convert logits to predicted class labels; (B, C) → (B,)
-            lbls = logits_to_lbl(cls_logits, self.cls_threshold)
             
-            # broadcast labels; (B, 1, 1, 1) → (B, 1, H, W)
-            seg_mask[:] = lbls[:, None, None, None]
-
-            # run segmentation head only for images belonging to boundary class.
-            boundary = (lbls == self.boundary_class)
-            if boundary.any():
-                # filter the input and skips for boundary class
-                x = x[boundary]
-                skips = [s[boundary] for s in skips]
-
-                # feed the input through the segmentation head
+            if 'UNet' in self.model:
+                # feed the input through the decoder
                 seg_logits = self.decoder(x, skips)
 
                 # convert logits to segmentation mask; (B, C, H, W) → (B, 1, H, W)
-                seg_mask[boundary] = logits_to_msk(seg_logits, 'argmax')
+                seg_mask = logits_to_msk(seg_logits, 'argmax')
 
-            return {'seg': seg_mask}
+                return {'seg': seg_mask}
+
+            else:
+                # feed the input through the classifier
+                cls_logits = self.classifier(x)
+
+                # convert logits to predicted class labels; (B, C) → (B,)
+                lbls = logits_to_lbl(cls_logits, self.cls_threshold)
+                
+                # create an empty mask tensor & broadcast labels; (B, 1, 1, 1) → (B, 1, H, W)
+                seg_mask = torch.zeros((B, 1, H, W), dtype = torch.long, device=x.device)
+                seg_mask[:] = lbls[:, None, None, None]
+
+                # run segmentation head only for images belonging to boundary class.
+                boundary = (lbls == self.boundary_class)
+                if boundary.any():
+                    # filter the input and skips for boundary class
+                    x = x[boundary]
+                    skips = [s[boundary] for s in skips]
+
+                    # feed the input through the segmentation head
+                    seg_logits = self.decoder(x, skips)
+
+                    # convert logits to segmentation mask; (B, C, H, W) → (B, 1, H, W)
+                    seg_mask[boundary] = logits_to_msk(seg_logits, 'argmax')
+
+                return {'seg': seg_mask}
 
         else:
             x, skips = self.encoder(x)

@@ -254,6 +254,7 @@ def remap_to_sorted_indices(arr: np.ndarray) -> np.ndarray:
     _, inv = np.unique(arr, return_inverse=True)
     return inv.reshape(arr.shape)
 
+
 def save_predictions(maskpath: Path, 
                      masks: torch.Tensor, 
                      ids: list[str]):
@@ -265,18 +266,17 @@ def save_predictions(maskpath: Path,
         maskpath : Path
             Path to the directory where masks will be saved.
 
-        outputs : torch.Tensor (B, C, H, W)
+        masks : torch.Tensor (B, C, H, W)
             Model output logits tensor.
 
         ids : list[str]
             List of image IDs corresponding to the outputs.
     """
 
+    if not maskpath.exists():
+        maskpath.mkdir(parents=True)
+
     for mask, id in zip(masks, ids):
         save_path = str(maskpath / f"{id}.png")
-
-        mask = mask.cpu().numpy().transpose(1, 2, 0)  # (C, H, W) → (H, W, C)
-        mask_8bit = (mask * 255).astype(np.uint8)     # Convert to 8-bit format
-
-        cv2.imwrite(save_path, mask_8bit)
-
+        mask = mask.cpu().numpy().transpose(1, 2, 0).astype(np.uint8)  # (C, H, W) → (H, W, C)
+        cv2.imwrite(save_path, mask)

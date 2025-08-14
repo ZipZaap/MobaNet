@@ -149,7 +149,7 @@ class FullDataset(Dataset):
         image = torch.from_numpy(image).permute(2, 0, 1).float()
         mask = torch.from_numpy(mask).permute(2, 0, 1).float()
         sdm = torch.from_numpy(sdm).permute(2, 0, 1).float()
-        cls = F.one_hot(torch.tensor(cls), self.cls_classes).float()
+        cls = torch.tensor(cls).long()
 
         return {'image': image, 'mask': mask, 'sdm': sdm, 'cls': cls}
     
@@ -212,9 +212,11 @@ class PredictDataset(Dataset):
         # load image → (H, W, C)
         image = load_png(impath)
 
-        # make PyTorch compatible: (H, W, C) → (C, H, W)
-        image = torch.from_numpy(image).permute(2, 0, 1).float()
-        
+        # # make PyTorch compatible: (H, W, C) → (C, H, W)
+        # image = torch.from_numpy(image).permute(2, 0, 1).float()
+
+        image = torch.from_numpy(image).float()
+
         return {'id': impath.stem, 'image': image}
 
 # ---------------------------------------------------------
@@ -415,6 +417,7 @@ class DatasetTools():
 
         trainIDs = TTS[str(fold)][f'{train_set}_train']
         testIDs = TTS[str(fold)][f'{test_set}_test']
+        print(f'[INFO] Total samples: {len(trainIDs) + len(testIDs)}')
 
         train_transform = A.Compose(
             [

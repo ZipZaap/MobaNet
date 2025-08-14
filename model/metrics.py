@@ -194,20 +194,17 @@ class ClassificationMetrics:
             pd_cls : torch.Tensor (B,)
                 Predicted class labels.
 
-            gt_cls : torch.Tensor (B, C)
-                One-hot encoded ground truth class labels.
+            gt_cls : torch.Tensor (B,)
+                Ground truth class labels.
 
         Returns
         -------
             accuracy : torch.Tensor
                 Accuracy of the predictions.
         """
-        
-        # gt_cls (B, C) → gt_cls_idx (B,)
-        gt_cls_idx = gt_cls.argmax(dim=1)
 
         # (B,) → scalar
-        accuracy = (pd_cls == gt_cls_idx).float().mean()
+        accuracy = (pd_cls == gt_cls).float().mean()
         return accuracy
     
 class Accuracy:

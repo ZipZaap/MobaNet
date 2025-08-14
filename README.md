@@ -93,7 +93,7 @@ README.md
 
 ## :bar_chart: Dataset
 
-This repository expects the training/testing dat to be organized in the pre-defined manner described below. Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
+This repository expects the training/testing data to be organized in the pre-defined manner described below. Update `DATASET_DIR` in [config.yaml](configs/config.yaml) to point to your dataset root:
 
 * **For Training**:  `train/images` and `train/masks` must exist and contain valid `.png` files.
 * **For Inference**:  only `predict/images` is required with valid `.png` files.
@@ -171,7 +171,7 @@ All configurable options, sensible defaults, and variable types are defined in t
    || `DATASET_DIR` | `str` | Path to the dataset folder |
    || `RESULTS_DIR` | `str` | Path to the output folder |
    | **Dataset** |--------------------------|-------|--------------------------------------------------------------|
-   || `SEED` | `int` | Random seed for dataset split. |
+   || `SEED` | `int` | Random seed for dataset split |
    || `TRAIN_SET_COMPOSITION` | `str` | Training-set composition: <br>• `full`: unfiltered dataset  <br>• `boundary`: only images containing boundaries |
    || `TEST_SET_COMPOSITION` | `str` | Test-set composition: <br>• `full`: unfiltered dataset  <br>• `boundary`: only images containing boundaries |
    || `TEST_SPLIT` | `float` | Fraction reserved for testing |
@@ -180,7 +180,7 @@ All configurable options, sensible defaults, and variable types are defined in t
    || `NUM_WORKERS` | `int` | Number of subprocesses used by PyTorch `DataLoader`. If set to 0, data loading occurs in the main process |
    | **Model** |--------------------------|-------|--------------------------------------------------------------|
    || `MODEL` | `str` | The user can either train the entire model end-to-end in a single run, or train each component separately, using dedicated datasets and loss functions for each part: <br>• `MobaNet-ED`: multi-output UNet with trainable Encoder & Decoder <br> • `MobaNet-EDC`: multi-output UNet with trainable Encoder, Decoder & Classification head <br>• `MobaNet-C`: multi-output UNet with trainable Classification head <br>• `MobaNet-D`: multi-output UNet with trainable Decoder <br>• `UNet`: standard U-Net architecture.  |
-   || `CHECKPOINT` | `str` | Path to the checkpoint file containing pre-trained weights <br>• When running `training`:  training will start from this checkpoint, unless `CHECKPOINT` is set to `null` <br>• When running `inference`: predictions will be made using this checkpoint; has to be set to a valid path |
+   || `CHECKPOINT` | `str` | Path to the checkpoint file containing pre-trained weights <br>• When in `training` mode -  training will start from this checkpoint, unless `CHECKPOINT` is set to `null` <br>• When in `inference` mode - predictions will be made using this checkpoint; has to be set to a valid path |
    || `INPUT_SIZE` | `int` | Input image side length (pixels) |
    || `INPUT_CHANNELS` | `int` | Number of image channels |
    || `UNET_DEPTH` | `int` | Number of down-sampling levels in a UNet (incl. bottleneck) |
@@ -202,7 +202,7 @@ All configurable options, sensible defaults, and variable types are defined in t
    | **SDM** |--------------------------|-------|--------------------------------------------------------------|
    || `SDM_KERNEL_SIZE` | `int` | Kernel size for SDM estimation |
    || `SDM_DISTANCE` | `str` | Type of distance used for the SDM. Available options: `manhattan`, `chebyshev`, `euclidean` |
-   || `SDM_NORMALIZATION` | `str` | SDM normalisation mode.  Available normalization options: <br>•`minmax`: by both max and min distance values of each individual SDM. <br>•`dynamic_max`: by the max distance value of each individual SDM. <br>•`static_max`: by the global max distance value (depends on `SDM_DISTANCE`)|
+   || `SDM_NORMALIZATION` | `str` | SDM normalisation mode:: <br>• `minmax`: by both max and min distance values of each individual SDM. <br>• `dynamic_max`: by the max distance value of each individual SDM. <br>• `static_max`: by the global max distance value (depends on `SDM_DISTANCE`)|
    || `SDM_SMOOTHING` | `bool` |  Whether the multi-class SDM is calculated in a smooth or discrete manner |
    || `SDM_SMOOTHING_ALPHA` | `float` | Smoothing factor for `logsumexp`; only relevant if `SDM_SMOOTHING == True` |
    | **Loss** |--------------------------|-------|--------------------------------------------------------------|
@@ -230,6 +230,57 @@ All configurable options, sensible defaults, and variable types are defined in t
 </details>
 
 ### Training & evaluation
+
+1. **Training** is initialized from the CMD and is complemneted by detailed logs
+
+   ```console
+   (moba) foo@bar:~$ python train.py
+   [INFO] Configuration file passed all validation tests.
+   [PREP] Generating class labels: 100%|█████████████████████████████████████████████| 4933/4933 [00:06<00:00, 772.54it/s]
+   [PREP] Generating SDMs on cuda:0: 100%|████████████████████████████████████████████████| 59/59 [00:07<00:00,  7.63it/s]
+   [INFO] Running in non-distributed mode on cuda:0 ...
+   [WARM] Warming up for 10 epochs ...
+   [TRAIN] Training for 200 epochs ...
+   Epoch 1/200 > ETC: 56.0m (17.0s / epoch)
+            Loss   | ↑ TTR  | ↑ DSC  | ↑ IoU  | ↓ ASD  | ↓ AD   | ↓ HD95 | ↓ D95  | ↑ CMA  |
+   Train -> 0.4786 | 0.9898 | 0.7887 | 0.6561 | 0.2615 | 0.1391 | 0.5675 | 0.2426 | 0.7611 |
+   Test  -> 0.1691 | 1.0000 | 0.8557 | 0.7520 | 0.2291 | 0.1107 | 0.5086 | 0.2027 | 0.8169 |
+   ----------------------------------------------------------------------------------------+
+   Epoch 2/200 > ETC: 46.0m (14.0s / epoch)
+            Loss   | ↑ TTR  | ↑ DSC  | ↑ IoU  | ↓ ASD  | ↓ AD   | ↓ HD95 | ↓ D95  | ↑ CMA  |
+   Train -> 0.2148 | 0.9885 | 0.8056 | 0.6786 | 0.2479 | 0.1399 | 0.5543 | 0.2379 | 0.7741 |
+   Test  -> 0.1523 | 1.0000 | 0.8691 | 0.7734 | 0.1905 | 0.1041 | 0.4502 | 0.2017 | 0.8370 |
+   ----------------------------------------------------------------------------------------+
+
+   [EVAL] Best epoch: 189
+   ---------------------------
+   loss/train         : 0.0574
+   loss/test          : 0.0501
+   loss/diff          : 0.0073
+   metrics-train/TTR  : 0.9872
+   metrics-train/DSC  : 0.9428
+   metrics-train/IoU  : 0.8933
+   metrics-train/ASD  : 0.1965
+   metrics-train/AD   : 0.0319
+   metrics-train/HD95 : 0.5161
+   metrics-train/D95  : 0.0823
+   metrics-train/CMA  : 0.9019
+   metrics-test/TTR   : 0.9284
+   metrics-test/DSC   : 0.9500
+   metrics-test/IoU   : 0.9052
+   metrics-test/ASD   : 0.1599
+   metrics-test/AD    : 0.0426
+   metrics-test/HD95  : 0.4296
+   metrics-test/D95   : 0.1013
+   metrics-test/CMA   : 0.9131
+   ---------------------------
+   ```
+
+2. **Inference** 
+
+   ```console
+   (moba) foo@bar:~$ python predict.py
+   ```
 
 ### CMD output
 

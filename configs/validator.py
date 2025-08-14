@@ -108,7 +108,7 @@ class Validator():
         if value not in options:
             raise ValueError(f"Value of `TRAIN_SET_COMPOSITION` must be one of {options}.")
 
-        if cls.cfg.MODEL in ['MobaNet_C', 'MobaNet_EDC'] and value == 'boundary':
+        if cls.cfg.MODEL in ['MobaNet_C', 'MobaNet_EC', 'MobaNet_EDC'] and value == 'boundary':
             raise ValueError("Value conflict between `MODEL` and `TRAIN_SET_COMPOSITION`! "
                             f"Model `{cls.cfg.MODEL}` cannot be trained with `boundary` dataset.")
 
@@ -117,7 +117,7 @@ class Validator():
         if value not in options:
             raise ValueError(f"Value of `TEST_SET_COMPOSITION` must be one of {options}.")
 
-        if cls.cfg.MODEL in ['MobaNet_C', 'MobaNet_EDC'] and value == 'boundary':
+        if cls.cfg.MODEL in ['MobaNet_C', 'MobaNet_EC', 'MobaNet_EDC'] and value == 'boundary':
             raise ValueError("Value conflict between `MODEL` and `TEST_SET_COMPOSITION`! "
                             f"Model `{cls.cfg.MODEL}` cannot be tested on `boundary` dataset.")
         
@@ -287,39 +287,65 @@ class Validator():
     @classmethod
     def _validate_loss(cls, value, options):
         loss = value.split('_')
+        loss_set = set(loss)
+        sdm_losses = {'wSegCE', 'MAE', 'sMAE', 'cMAE', 'Boundary'}
 
-        if not set(loss).issubset(set(options)):
+        # basic checks
+        if not loss_set.issubset(set(options)):
             raise ValueError(f"Value of `LOSS` must either be one of or a combination (separated by `_`) of {options}.")
-
-        if len(loss) != len(set(loss)):
+        if len(loss) != len(loss_set):
             raise ValueError("Value of `LOSS` must not contain duplicate loss functions.")
 
-        if "SoftDICE" in loss and any(l in loss for l in ['MAE','sMAE','cMAE','Boundary']):
+        # cross-loss constraints
+        if 'SoftDICE' in loss_set and sdm_losses & loss_set:
             raise ValueError("SoftDICE should not be combined with sdm-based losses; Use HardDICE instead.")
 
+
+        # model-specific constraints
         if cls.cfg.MODEL == 'MobaNet_EDC':
-            if 'ClsCE' not in loss and len(loss) < 2:
-                raise ValueError("Value conflict between `MODEL` and `LOSS`! "
-                                f"Model `{cls.cfg.MODEL}` requires at least 2 loss functions to be included in the loss term, "
-                                 "one of which must be the ClsCE loss (e.g. SoftDICE_ClsCE).")
+            if not ('ClsCE' in loss_set and len(loss_set) >= 2):
+                raise ValueError(
+                    "Value conflict between `MODEL` and `LOSS`! "
+                    f"Model `{cls.cfg.MODEL}` requires at least 2 loss functions to be included in the loss term, "
+                    "one of which must be the ClsCE loss (e.g. SoftDICE_ClsCE)."
+                )
+        elif cls.cfg.MODEL in ['MobaNet_ED', 'MobaNet_D', 'UNet']:
+            if 'ClsCE' in loss_set:
+                raise ValueError(
+                    "Value conflict between `MODEL` and `LOSS`! "
+                    f"Model `{cls.cfg.MODEL}` cannot be trained with ClsCE loss."
+                )
+        elif cls.cfg.MODEL in ['MobaNet_C', 'MobaNet_EC']:
+            if loss_set != {'ClsCE'}:
+                raise ValueError(
+                    "Value conflict between `MODEL` and `LOSS`! "
+                    "Models `MobaNet_C` & `MobaNet_EC` only supports the ClsCE loss."
+                )
 
-        if cls.cfg.MODEL in ['MobaNet_ED', 'MobaNet_D', 'UNet']:
-            if 'ClsCE' in loss:
-                raise ValueError("Value conflict between `MODEL` and `LOSS`! "
-                                f"Model `{cls.cfg.MODEL}` cannot be trained with ClsCE loss.")
-
-        if cls.cfg.MODEL == 'MobaNet_C':
-            if loss != ['ClsCE']:
-                raise ValueError("Value conflict between `MODEL` and `LOSS`! "
-                                 "Model `MobaNet_C` only supports the ClsCE loss.")
-
-        if 'ClsCE' in loss:
+        # dataset-composition constraints
+        if 'ClsCE' in loss_set:
             if cls.cfg.TRAIN_SET_COMPOSITION == 'boundary':
-                raise ValueError("Value conflict between `LOSS` and `TRAIN_SET_COMPOSITION`! "
-                                 "ClsCE loss cannot be trained with `boundary` dataset, use `full` dataset instead.")
+                raise ValueError(
+                    "Value conflict between `LOSS` and `TRAIN_SET_COMPOSITION`! "
+                    "ClsCE loss cannot be trained with `boundary` dataset, use `full` dataset instead."
+                )
             if cls.cfg.TEST_SET_COMPOSITION == 'boundary':
-                raise ValueError("Value conflict between `LOSS` and `TEST_SET_COMPOSITION`! "
-                                 "ClsCE loss cannot be tested with `boundary` dataset, use `full` dataset instead.")
+                raise ValueError(
+                    "Value conflict between `LOSS` and `TEST_SET_COMPOSITION`! "
+                    "ClsCE loss cannot be tested with `boundary` dataset, use `full` dataset instead."
+                )
+            
+        if loss_set & sdm_losses:
+            if cls.cfg.TRAIN_SET_COMPOSITION == 'full':
+                raise ValueError(
+                    "Value conflict between `LOSS` and `TRAIN_SET_COMPOSITION`! "
+                    "SDM-based losses cannot be trained with `full` dataset, use `boundary` dataset instead."
+                )
+            if cls.cfg.TEST_SET_COMPOSITION == 'full':
+                raise ValueError(
+                    "Value conflict between `LOSS` and `TEST_SET_COMPOSITION`! "
+                    "SDM-based losses cannot be tested with `full` dataset, use `boundary` dataset instead."
+                )
 
     @classmethod
     def _validate_adaptive_weights(cls, value, options):
