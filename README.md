@@ -44,7 +44,7 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
    This step is done fisrt and independently to make sure that PyTorch doesn't default to a CPU install.
 
     ```console
-    (moba) foo@bar:~$ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+    (moba) foo@bar:~$ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
     (moba) foo@bar:~$ python -c "import torch; print(torch.cuda.is_available())"
     True
     ```
