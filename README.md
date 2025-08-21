@@ -239,6 +239,7 @@ All configurable options, sensible defaults, and variable types are defined in t
 
    ```console
    (moba) foo@bar:~$ python train.py
+   [INFO] Type `train.py --help` for more information
    [INFO] Configuration file passed all validation tests.
    [PREP] Generating class labels: 100%|███████████████████| 4933/4933 [00:06<00:00, 772.54it/s]
    [PREP] Generating SDMs on cuda:0: 100%|██████████████████████| 59/59 [00:07<00:00,  7.63it/s]
@@ -261,13 +262,27 @@ All configurable options, sensible defaults, and variable types are defined in t
 
    ```python
    from train import train
-   train('configs/config.yaml')
+   train("configs/config.yaml", dataset_dir="path/to/dataset", 
+         batch_size=16, train_epochs=100, loss="SoftDICE", GPUs=[0, 1])
    ```
 
 2. **Inference**
 
    ```console
    (moba) foo@bar:~$ python predict.py
+   [INFO] Type `predict.py --help` for more information
+   [INFO] Configuration file passed all validation tests.
+   [INFO] Predictions saved to dataset_root/predict/masks/
+   ```
+
+   Or using the provided python API:
+
+   ```python
+   from predict import Predictor
+   model = Predictor('saved/exp_0/MobaNet-model.pth', 'cuda:0', 0.8)
+   imID = 'ESP_123456_1234_RED-1234_1234'
+   impath = f'dataset_root/predict/images/{imID}.png'
+   output = model.predict(impath)
    ```
 
 ### CMD output

@@ -64,6 +64,9 @@ def parse_cli_args(cfg: dict[str, dict],
     # If inference, filter out training-specific keys
     if inference:
         cfg = {k: v for k, v in cfg.items() if k in inference_keys}
+        print(f"[INFO] Type `predict.py --help` for more information.")
+    else:
+        print(f"[INFO] Type `train.py --help` for more information.")
 
     # Create a parser with the SpacedDefaultsFormatter
     parser = argparse.ArgumentParser(

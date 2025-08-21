@@ -266,3 +266,5 @@ def save_predictions(maskpath: Path,
         save_path = str(maskpath / f"{id}.png")
         mask = mask.cpu().numpy().transpose(1, 2, 0).astype(np.uint8)  # (C, H, W) → (H, W, C)
         cv2.imwrite(save_path, mask)
+
+    print(f"[INFO] Predictions saved to {maskpath}")
