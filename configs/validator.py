@@ -104,21 +104,21 @@ class Validator():
         pass
 
     @classmethod
-    def _validate_train_set_composition(cls, value, options):
+    def _validate_train_set(cls, value, options):
         if value not in options:
-            raise ValueError(f"Value of `TRAIN_SET_COMPOSITION` must be one of {options}.")
+            raise ValueError(f"Value of `TRAIN_SET` must be one of {options}.")
 
         if cls.cfg.MODEL in ['MobaNet_C', 'MobaNet_EC', 'MobaNet_EDC'] and value == 'boundary':
-            raise ValueError("Value conflict between `MODEL` and `TRAIN_SET_COMPOSITION`! "
+            raise ValueError("Value conflict between `MODEL` and `TRAIN_SET`! "
                             f"Model `{cls.cfg.MODEL}` cannot be trained with `boundary` dataset.")
 
     @classmethod
-    def _validate_test_set_composition(cls, value, options):
+    def _validate_test_set(cls, value, options):
         if value not in options:
-            raise ValueError(f"Value of `TEST_SET_COMPOSITION` must be one of {options}.")
+            raise ValueError(f"Value of `TEST_SET` must be one of {options}.")
 
         if cls.cfg.MODEL in ['MobaNet_C', 'MobaNet_EC', 'MobaNet_EDC'] and value == 'boundary':
-            raise ValueError("Value conflict between `MODEL` and `TEST_SET_COMPOSITION`! "
+            raise ValueError("Value conflict between `MODEL` and `TEST_SET`! "
                             f"Model `{cls.cfg.MODEL}` cannot be tested on `boundary` dataset.")
         
     @classmethod    
@@ -322,28 +322,28 @@ class Validator():
                     "Models `MobaNet_C` & `MobaNet_EC` only supports the ClsCE loss."
                 )
 
-        # dataset-composition constraints
+        # dataset constraints
         if 'ClsCE' in loss_set:
-            if cls.cfg.TRAIN_SET_COMPOSITION == 'boundary':
+            if cls.cfg.TRAIN_SET == 'boundary':
                 raise ValueError(
-                    "Value conflict between `LOSS` and `TRAIN_SET_COMPOSITION`! "
+                    "Value conflict between `LOSS` and `TRAIN_SET`! "
                     "ClsCE loss cannot be trained with `boundary` dataset, use `full` dataset instead."
                 )
-            if cls.cfg.TEST_SET_COMPOSITION == 'boundary':
+            if cls.cfg.TEST_SET == 'boundary':
                 raise ValueError(
-                    "Value conflict between `LOSS` and `TEST_SET_COMPOSITION`! "
+                    "Value conflict between `LOSS` and `TEST_SET`! "
                     "ClsCE loss cannot be tested with `boundary` dataset, use `full` dataset instead."
                 )
             
         if loss_set & sdm_losses:
-            if cls.cfg.TRAIN_SET_COMPOSITION == 'full':
+            if cls.cfg.TRAIN_SET == 'full':
                 raise ValueError(
-                    "Value conflict between `LOSS` and `TRAIN_SET_COMPOSITION`! "
+                    "Value conflict between `LOSS` and `TRAIN_SET`! "
                     "SDM-based losses cannot be trained with `full` dataset, use `boundary` dataset instead."
                 )
-            if cls.cfg.TEST_SET_COMPOSITION == 'full':
+            if cls.cfg.TEST_SET == 'full':
                 raise ValueError(
-                    "Value conflict between `LOSS` and `TEST_SET_COMPOSITION`! "
+                    "Value conflict between `LOSS` and `TEST_SET`! "
                     "SDM-based losses cannot be tested with `full` dataset, use `boundary` dataset instead."
                 )
 

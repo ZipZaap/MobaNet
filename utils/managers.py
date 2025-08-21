@@ -17,25 +17,56 @@ class ProcessManager():
         ----
             cfg : Config
                 Configuration object containing the following attributes:
+                1. General
                 - `.RANK` (int): The rank of the process.
+                - `.EXP_DIR` (Path): Save directory of the current experiment.
+                - `._inference` (bool): Whether the model is in inference mode.
+
+                2. DDP
                 - `.GPU_LIST` (list[int]): List of GPUs to use.
                 - `.WORLD_SIZE` (int): Number of processes (GPUs) in the distributed training.
                 - `.MASTER_ADDR` (str): Master address for distributed training.
                 - `.MASTER_PORT` (str): Master port for distributed training.
-                - `.FREEZE_LAYERS` (list[str]): List of layers to freeze.
-                - `.EXP_DIR` (Path): Save directory of the current experiment.
+
+                3. Model-specific
+                - `.MODEL` (str): Name of the model architecture.
+                - `.UNET_DEPTH` (int): Depth of the U-Net architecture.
+                - `.CONV_DEPTH` (int): Depth of the convolutional layers.
+                - `.INPUT_CHANNELS` (int): Number of input channels.
+                - `.SEG_CLASSES` (int): Number of segmentation classes.
+                - `.CLS_CLASSES` (int): Number of classification classes.
+                - `.SEG_DROPOUT` (float | None): Dropout rate for segmentation layers.
+                - `.CLS_DROPOUT` (float | None): Dropout rate for classification layers.
                 - `.CHECKPOINT` (str | None): Name of the checkpoint file (without .pth extension).
+                - `.FREEZE_LAYERS` (list[str]): List of layers to freeze.
         """
         
+        # general attributes
         self.cfg: Config = cfg
         self.rank: int = cfg.RANK
+        self.exp_dir: Path = cfg.EXP_DIR
+        # self.inference: bool = cfg._inference
+
+        # distributed training attributes
         self.gpu_list: list[int] = cfg.GPUs
         self.worldsize: int = cfg.WORLD_SIZE
         self.master_addr: str = cfg.MASTER_ADDR
         self.master_port: str = cfg.MASTER_PORT
-        self.freeze_layers: list[str] = cfg.FREEZE_LAYERS
-        self.exp_dir: Path = cfg.EXP_DIR
+
+        # model-architecture attributes
+        self.model : str = cfg.MODEL
+        self.unet_depth: int = cfg.UNET_DEPTH
+        self.conv_depth: int = cfg.CONV_DEPTH
+        self.in_channels: int = cfg.INPUT_CHANNELS
+        self.seg_classes: int = cfg.SEG_CLASSES
+        self.cls_classes: int = cfg.CLS_CLASSES
+        self.seg_dropout: float | None = cfg.SEG_DROPOUT
+        self.cls_dropout: float | None = cfg.CLS_DROPOUT
+
+        # pre-trained weights loading attributes
         self.checkpoint: Path | None = cfg.CHECKPOINT
+        self.freeze_layers: list[str] = cfg.FREEZE_LAYERS
+
 
     def bind_to_device(self):
         """
@@ -77,7 +108,17 @@ class ProcessManager():
             model : torch.nn.Module
                 The loaded model.
         """
-        model = MobaNet(self.cfg)
+        
+        model = MobaNet(
+            model = self.model,
+            unet_depth = self.unet_depth,
+            conv_depth = self.conv_depth,
+            in_channels = self.in_channels,
+            seg_classes = self.seg_classes,
+            cls_classes = self.cls_classes,
+            seg_dropout = self.seg_dropout,
+            cls_dropout = self.cls_dropout
+        )
 
         if self.checkpoint:
             weights = torch.load(self.checkpoint, 

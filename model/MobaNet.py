@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 import torch.nn as nn
 
@@ -125,7 +127,19 @@ class Classifier(nn.Module):
 # MobaNet (Combined Model)
 # ------------------------
 class MobaNet(nn.Module):
-    def __init__(self, cfg: Config):
+    def __init__(self, 
+                 *,
+                 model: str,
+                 unet_depth: int,
+                 conv_depth: int,
+                 in_channels: int,
+                 seg_classes: int,
+                 cls_classes: int,
+                 seg_dropout: Optional[float] = 0.0,
+                 cls_dropout: Optional[float] = 0.0,
+                 cls_threshold: Optional[float] = None,
+                 inference: bool = False
+                 ):
         """
         Initializes the MobaNet model.
 
@@ -145,18 +159,10 @@ class MobaNet(nn.Module):
 
         super().__init__()
 
-        unet_depth: int = cfg.UNET_DEPTH
-        conv_depth: int = cfg.CONV_DEPTH
-        in_channels: int = cfg.INPUT_CHANNELS
-        seg_classes: int = cfg.SEG_CLASSES
-        seg_dropout: float = cfg.SEG_DROPOUT
-        cls_classes: int = cfg.CLS_CLASSES
-        cls_dropout: float = cfg.CLS_DROPOUT
-
-        self.model: str = cfg.MODEL
-        self.inference: bool = cfg._inference
-        self.cls_threshold: float | None = cfg.CLS_THRESHOLD
-        self.boundary_class: int = cfg.SEG_CLASSES
+        self.model = model
+        self.inference = inference
+        self.cls_threshold = cls_threshold
+        self.boundary_class = seg_classes
 
         enc_ch = [conv_depth * (2 ** i) for i in range(unet_depth)]
         dec_ch = enc_ch[::-1]
@@ -219,3 +225,16 @@ class MobaNet(nn.Module):
             else: # 'MobaNet' in self.model
                 cls_logits = self.classifier(x)
                 return {'seg': seg_logits, 'cls': cls_logits}
+            
+    # unet_depth: int = cfg.UNET_DEPTH
+    # conv_depth: int = cfg.CONV_DEPTH
+    # in_channels: int = cfg.INPUT_CHANNELS
+    # seg_classes: int = cfg.SEG_CLASSES
+    # cls_classes: int = cfg.CLS_CLASSES
+    # seg_dropout: Optional[float] = getattr(cfg, "SEG_DROPOUT", None)
+    # cls_dropout: Optional[float] = getattr(cfg, "CLS_DROPOUT", None)
+
+    # self.model: str = cfg.MODEL
+    # self.inference: bool = cfg._inference
+    # self.cls_threshold: float | None = cfg.CLS_THRESHOLD
+    # self.boundary_class: int = cfg.SEG_CLASSES

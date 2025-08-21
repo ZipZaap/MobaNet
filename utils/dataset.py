@@ -409,8 +409,8 @@ class DatasetTools():
         batch: int = cfg.BATCH_SIZE
         workers: int = cfg.NUM_WORKERS
         tts_json: Path = cfg.TTS_JSON
-        train_set: str = cfg.TRAIN_SET_COMPOSITION
-        test_set: str = cfg.TEST_SET_COMPOSITION
+        train_set: str = cfg.TRAIN_SET
+        test_set: str = cfg.TEST_SET
 
         with tts_json.open() as f:
             TTS = json.load(f)

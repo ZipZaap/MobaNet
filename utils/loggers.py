@@ -74,10 +74,12 @@ class Logger:
             wandb.finish()
 
         if self.log_local:
+            self.cfg.EXP_DIR.mkdir(parents=True, exist_ok=True)
             with self.log_json.open('w') as f:
                 json.dump(self.run_summary, f)
 
         if self.save_model:
+            self.cfg.EXP_DIR.mkdir(parents=True, exist_ok=True)
             torch.save(self.checkpoint, self.model_pth)
             with self.best_epoch_json.open('w') as f:
                 json.dump(self.best_epoch_log, f)

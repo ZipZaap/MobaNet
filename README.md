@@ -59,32 +59,35 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
 
 ```graphql
 configs/
-│   ├──config.yaml ------------------ # Default parameters
-│   ├──cfgparser.py ----------------- # Config() class which stores the defaults
-│   ├──cli.py ----------------------- # Basic command-line interface
-│   └──validator.py ----------------- # Validation logic
+│   ├─config.yaml ----------------- # Default parameters
+│   ├─cfgparser.py ---------------- # Config() class which stores the defaults
+│   ├─cli.py ---------------------- # Basic command-line interface
+│   └─validator.py ---------------- # Validation logic
 |
 engines/
-│   └──SegTrainer.py----------------- # Main training loop
+│   └─SegTrainer.py---------------- # Main training loop
 |
 model/
-│   ├───MobaNet.py ------------------ # PyTorch model architechture 
-│   ├───loss.py --------------------- # Loss functions for training
-│   └───metrics.py ------------------ # Evaluation metrics
+│   ├─MobaNet.py ------------------ # PyTorch model architechture 
+│   ├─loss.py --------------------- # Loss functions for training
+│   └─metrics.py ------------------ # Evaluation metrics
 │
 saved/
-│   └──tts.json --------------------- # Train/test split dictionary of image IDs
+│   └─exp_N/
+│      ├─run-best.json ------------ # Best epoch metrics
+│      ├─run-log.json ------------- # Full run log
+│      └─run-model.pth ------------ # Best model
 │
 utils/
-│   ├───dataset.py ------------------ # PyTorch DataLoaders + train/test split logic
-│   ├───loggers.py ------------------ # Experiment tracking tools
-│   ├───managers.py ----------------- # Model loading, device allocation & process mgmt
-│   ├───sdf.py ---------------------- # Signed Distance Map utilities
-│   └───util.py --------------------- # Misc helper functions
+│   ├─dataset.py ------------------ # PyTorch DataLoaders + train/test split logic
+│   ├─loggers.py ------------------ # Experiment tracking tools
+│   ├─managers.py ----------------- # Model loading, device allocation & process mgmt
+│   ├─sdf.py ---------------------- # Signed Distance Map utilities
+│   └─util.py --------------------- # Misc helper functions
 |
-train.py ---------------------------- # Training entry point
-predict.py -------------------------- # Inference entry point
-requirements.yml -------------------- # Dependencies
+train.py -------------------------- # Training entry point
+predict.py ------------------------ # Inference entry point
+requirements.yml ------------------ # Dependencies
 README.md
 ```
 
@@ -106,6 +109,7 @@ dataset/
    │   ├──images/ ---------------------- # Image tiles in .png format
    │   ├──masks/ ----------------------- # Indexed masks in .png format
    │   ├──sdms/ ------------------------ # Signed Distance Maps in .npy format 
+   │   ├──tts.json --------------------- # Train/test split dictionary of image IDs
    │   └──labels.json ------------------ # File containing class labels 
    |
    └───predict/
@@ -172,8 +176,8 @@ All configurable options, sensible defaults, and variable types are defined in t
    || `RESULTS_DIR` | `str` | Path to the output folder |
    | **Dataset** |--------------------------|-------|--------------------------------------------------------------|
    || `SEED` | `int` | Random seed for dataset split |
-   || `TRAIN_SET_COMPOSITION` | `str` | Training-set composition: <br>• `full`: unfiltered dataset  <br>• `boundary`: only images containing boundaries |
-   || `TEST_SET_COMPOSITION` | `str` | Test-set composition: <br>• `full`: unfiltered dataset  <br>• `boundary`: only images containing boundaries |
+   || `TRAIN_SET` | `str` | Training-set composition: <br>• `full`: unfiltered dataset  <br>• `boundary`: only images containing boundaries |
+   || `TEST_SET` | `str` | Test-set composition: <br>• `full`: unfiltered dataset  <br>• `boundary`: only images containing boundaries |
    || `TEST_SPLIT` | `float` | Fraction reserved for testing |
    || `CROSS_VALIDATION` | `bool` | Enable K-fold cross-validation |
    || `DEFAULT_FOLD` | `int` | Fold to use when CV is disabled |
@@ -236,47 +240,31 @@ All configurable options, sensible defaults, and variable types are defined in t
    ```console
    (moba) foo@bar:~$ python train.py
    [INFO] Configuration file passed all validation tests.
-   [PREP] Generating class labels: 100%|█████████████████████████████| 4933/4933 [00:06<00:00, 772.54it/s]
-   [PREP] Generating SDMs on cuda:0: 100%|████████████████████████████████| 59/59 [00:07<00:00,  7.63it/s]
+   [PREP] Generating class labels: 100%|████████████████████████| 4933/4933 [00:06<00:00, 772.54it/s]
+   [PREP] Generating SDMs on cuda:0: 100%|███████████████████████████| 59/59 [00:07<00:00,  7.63it/s]
    [INFO] Running in non-distributed mode on cuda:0 ...
    [WARM] Warming up for 10 epochs ...
    [TRAIN] Training for 200 epochs ...
-   Epoch 1/200 > ETC: 56.0m (17.0s / epoch)
+   Epoch 1/200 > ETC: 46.0m (14.0s / epoch)
             Loss   | ↑ TTR  | ↑ DSC  | ↑ IoU  | ↓ ASD  | ↓ AD   | ↓ HD95 | ↓ D95  | ↑ CMA  |
    Train -> 0.4786 | 0.9898 | 0.7887 | 0.6561 | 0.2615 | 0.1391 | 0.5675 | 0.2426 | 0.7611 |
    Test  -> 0.1691 | 1.0000 | 0.8557 | 0.7520 | 0.2291 | 0.1107 | 0.5086 | 0.2027 | 0.8169 |
    ----------------------------------------------------------------------------------------+
-   Epoch 2/200 > ETC: 46.0m (14.0s / epoch)
+   Epoch 2/200 > ETC: 45.0m (14.0s / epoch)
             Loss   | ↑ TTR  | ↑ DSC  | ↑ IoU  | ↓ ASD  | ↓ AD   | ↓ HD95 | ↓ D95  | ↑ CMA  |
    Train -> 0.2148 | 0.9885 | 0.8056 | 0.6786 | 0.2479 | 0.1399 | 0.5543 | 0.2379 | 0.7741 |
    Test  -> 0.1523 | 1.0000 | 0.8691 | 0.7734 | 0.1905 | 0.1041 | 0.4502 | 0.2017 | 0.8370 |
    ----------------------------------------------------------------------------------------+
-
-   [EVAL] Best epoch: 189
-   ---------------------------
-   loss/train         : 0.0574
-   loss/test          : 0.0501
-   loss/diff          : 0.0073
-   metrics-train/TTR  : 0.9872
-   metrics-train/DSC  : 0.9428
-   metrics-train/IoU  : 0.8933
-   metrics-train/ASD  : 0.1965
-   metrics-train/AD   : 0.0319
-   metrics-train/HD95 : 0.5161
-   metrics-train/D95  : 0.0823
-   metrics-train/CMA  : 0.9019
-   metrics-test/TTR   : 0.9284
-   metrics-test/DSC   : 0.9500
-   metrics-test/IoU   : 0.9052
-   metrics-test/ASD   : 0.1599
-   metrics-test/AD    : 0.0426
-   metrics-test/HD95  : 0.4296
-   metrics-test/D95   : 0.1013
-   metrics-test/CMA   : 0.9131
-   ---------------------------
    ```
 
-2. **Inference** 
+   Alternatively the user can launch training programmatically:
+
+   ```python
+   from train import train
+   train('configs/config.yaml')
+   ```
+
+2. **Inference**
 
    ```console
    (moba) foo@bar:~$ python predict.py

@@ -232,20 +232,6 @@ def gather_tensors(tensor_dict: dict[str, torch.Tensor],
     return tensor_dict
 
 
-def setup_dirs(cfg: Config):
-    """
-    Create necessary directories for the experiment based on the configuration.
-
-    Args
-    ----
-        cfg : Config
-            Configuration object containing paths and settings.
-    """
-    cfg.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    if cfg.LOG_LOCAL or cfg.LOG_WANDB or cfg.SAVE_MODEL:
-        cfg.EXP_DIR.mkdir(parents=True, exist_ok=True)
-
-
 def remap_to_sorted_indices(arr: np.ndarray) -> np.ndarray:
     """
     Replace each value in `a` by its index in the sorted list of uniques.

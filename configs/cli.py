@@ -22,7 +22,10 @@ class SpacedDefaultsFormatter(argparse.RawTextHelpFormatter):
             return ', '.join(action.option_strings) + f' [default: {shown_default}]'
         return super()._format_action_invocation(action)
 
-def parse_cli_args(cfg: dict[str, dict]) -> dict[str, dict]:
+def parse_cli_args(cfg: dict[str, dict], 
+                   *, 
+                   inference: bool = False
+                   ) -> dict[str, dict]:
     """
     Update the configuration dictionary with command line arguments.
 
@@ -31,11 +34,23 @@ def parse_cli_args(cfg: dict[str, dict]) -> dict[str, dict]:
         cfg : dict[str, dict]
             Configuration dictionary with keys corresponding to parameter names.
 
+        inference : bool
+            If True, only inference-related keys will be considered.
+
     Returns
     -------
         cfg : dict[str, dict]
             Configuration dictionary updated with command line arguments.
     """
+
+    inference_keys: list[str] = [
+        "DATASET_DIR", 
+        "NUM_WORKERS", 
+        "CHECKPOINT", 
+        "BATCH_SIZE", 
+        "GPUs", 
+        "CLS_THRESHOLD"
+    ]
 
     type_mapping = {
         'int': int,
@@ -45,6 +60,10 @@ def parse_cli_args(cfg: dict[str, dict]) -> dict[str, dict]:
         'list': list,
         'dict': dict
     }
+
+    # If inference, filter out training-specific keys
+    if inference:
+        cfg = {k: v for k, v in cfg.items() if k in inference_keys}
 
     # Create a parser with the SpacedDefaultsFormatter
     parser = argparse.ArgumentParser(

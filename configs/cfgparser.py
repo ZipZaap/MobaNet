@@ -1,39 +1,47 @@
-import yaml
 from typing import Any
 from pathlib import Path
 from configs.validator import Validator
-from configs.cli import parse_cli_args
-
-import torch
 
 class Config:
     """
-    A configuration loader that reads key:value pairs from a YAML file
+    A configuration loader that reads key:value pairs from a parameter dictionary
     and sets them as attributes. After initialization, attributes are
     immutable unless their names are listed in `MUTABLE_KEYS`.
     """
 
-    INFERENCE_KEYS: list[str] = ["DATASET_DIR", "NUM_WORKERS", "CHECKPOINT", "BATCH_SIZE", "GPUs", "CLS_THRESHOLD"]
-    EXPORT_KEYS: list[str] = ["MODEL", "UNET_DEPTH", "CONV_DEPTH", "INPUT_CHANNELS", "SEG_CLASSES", "CLS_CLASSES", "SEG_DROPOUT", "CLS_DROPOUT"]
+    EXPORT_KEYS: list[str] = ["MODEL", "UNET_DEPTH", "CONV_DEPTH", "INPUT_CHANNELS", "SEG_CLASSES", "CLS_CLASSES"]
     MUTABLE_KEYS: list[str] = ["RANK", "DEVICE"]
 
-    def __init__(self, config: str, *, inference: bool = False, cli: bool = False):
+    def __init__(self, 
+                 cfg: dict, 
+                 *, 
+                 inference: bool = False
+                 ):
+        """
+        Initialize the configuration object.
+
+        Args
+        ----
+            cfg : dict
+                Configuration dictionary containing key:value pairs.
+
+            inference : bool
+                Whether the configuration is for inference (default: False).
+
+        Examples
+        --------
+        >>> import yaml
+        >>> from pathlib import Path
+        >>>
+        >>> with Path("configs/config.yaml").open() as f:
+        >>>     cfg: dict = yaml.load(f, Loader=yaml.FullLoader)
+        >>>
+        >>> CONF = Config(cfg, inference=True)
+        """
 
         # Immutability disabled by default
         self._frozen: bool = False
         self._inference: bool = inference
-
-        # Load the YAML into a dict
-        with Path(config).open() as f:
-            cfg: dict[str, dict[str, Any]] = yaml.load(f, Loader=yaml.FullLoader)
-
-        # If inference, filter out training-specific keys
-        if inference:
-            cfg = {k: v for k, v in cfg.items() if k in Config.INFERENCE_KEYS}
-
-        # If CLI is enabled, parse command line arguments and update the config
-        if cli:
-            cfg = parse_cli_args(cfg)
 
         # Validate the configuration
         Validator.validate_cfg(cfg, inference)
@@ -49,6 +57,11 @@ class Config:
         object.__setattr__(self, '_frozen', True)
 
     def __setattr__(self, name: str, value):
+        """
+        Set an attribute on the Config object.
+        If the object is frozen, only mutable keys can be changed.
+        """
+
         if name.startswith('_') or name in self.MUTABLE_KEYS or not getattr(self, '_frozen', False):
             return object.__setattr__(self, name, value)
         raise AttributeError(f"Cannot modify attribute '{name}'; it's immutable.")
@@ -101,44 +114,35 @@ class Config:
         This includes paths, derived numerical values, and model-specific settings.
         """
 
-        # Core paths ----------------------------------------------------------
+        # Core paths ---------------------------------------------------------------------
         self.DATASET_DIR = Path(self.DATASET_DIR)
         self.CHECKPOINT = Path(self.CHECKPOINT) if self.CHECKPOINT else None
 
-        # Derived values ------------------------------------------------------
+        # Derived values -----------------------------------------------------------------
         self.DEFAULT_DEVICE = f'cuda:{self.GPUs[0]}' if self.GPUs else 'cuda:0'
 
-        if self._inference and self.CHECKPOINT:
-            # Prediction dataset paths ----------------------------------------
+        if self._inference:
+            # Prediction dataset paths ---------------------------------------------------
             self.PREDICT_DIR = self.DATASET_DIR / 'predict'
             self.IMG_DIR = self.PREDICT_DIR / 'images'
             self.MSK_DIR = self.PREDICT_DIR / 'masks'
 
-            # Model-specific settings -----------------------------------------
-            model_cfg = torch.load(self.CHECKPOINT,
-                                   map_location='meta',
-                                   mmap=True,
-                                   weights_only=True)['config']
-
-            for key, value in model_cfg.items():
-                setattr(self, key, value)
-
         else:
-            # ID strings ------------------------------------------------------
+            # ID strings -----------------------------------------------------------------
             self.EXP_ID = self.EXP_ID if self.EXP_ID else self._exp_id()
-            self.RUN_ID = self.RUN_ID if self.RUN_ID else f"{self.MODEL}_{self.TRAIN_SET_COMPOSITION}"
+            self.RUN_ID = self.RUN_ID if self.RUN_ID else f"{self.MODEL}({self.TRAIN_SET})"
 
-            # Training dataset paths ------------------------------------------
+            # Training dataset paths -----------------------------------------------------
             self.TRAIN_DIR = self.DATASET_DIR / 'train'
             self.IMG_DIR = self.TRAIN_DIR / 'images'
             self.MSK_DIR = self.TRAIN_DIR / 'masks'
             self.SDM_DIR = self.TRAIN_DIR / 'sdms'
             self.LBL_JSON = self.TRAIN_DIR / 'labels.json'
+            self.TTS_JSON = self.TRAIN_DIR / 'tts.json'
 
-            # Results paths ---------------------------------------------------
+            # Results paths --------------------------------------------------------------
             self.RESULTS_DIR = Path(self.RESULTS_DIR)
             self.EXP_DIR = self.RESULTS_DIR / self.EXP_ID
-            self.TTS_JSON = self.RESULTS_DIR / 'tts.json'
             self.LOG_JSON = self.EXP_DIR / f"{self.RUN_ID}-log.json"
             self.BEST_EPOCH_JSON = self.EXP_DIR / f"{self.RUN_ID}-best.json"
             self.MODEL_PTH = self.EXP_DIR / f"{self.RUN_ID}-model.pth"
@@ -149,12 +153,12 @@ class Config:
                       f"contains files matching RUN_ID '{self.RUN_ID}'; "
                       f"they will be overwritten.")
 
-            # Derived values --------------------------------------------------
+            # Derived values -------------------------------------------------------------
             self.NUM_KFOLDS = int(1 / self.TEST_SPLIT)
             self.WORLD_SIZE = len(self.GPUs)
             self.BATCH_SIZE = int(self.BATCH_SIZE / self.WORLD_SIZE)
 
-            # Model-specific settings -----------------------------------------
+            # Model-specific settings ----------------------------------------------------
             model_freeze_layers = {
                 'MobaNet_EDC': [],
                 'MobaNet_ED': ['classifier'],
@@ -164,7 +168,6 @@ class Config:
                 'UNet': [],
             }
             self.FREEZE_LAYERS = model_freeze_layers[self.MODEL]
-
     
     def export(self) -> dict[str, Any]:
         """

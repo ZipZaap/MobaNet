@@ -1,49 +1,67 @@
-import os
+import yaml
 import torch
 import numpy as np
-
 from pathlib import Path
+
 from utils.dataset import DatasetTools
 from utils.util import load_png, save_predictions
 from configs.cfgparser  import Config
+from configs.cli import parse_cli_args
 from model.MobaNet import MobaNet
 
 class Predictor:
     def __init__(self,
-                 cfg: Config):
+                 checkpoint: Path | str | None,
+                 device: str,
+                 cls_threshold: float | None = None):
         """
         Initialize the predictor with the configuration.
         
         Args
         ----
-            cfg : Config
-                Configuration object containing the following attributes:
-                - `.CHECKPOINT` (Path | None): Path to the model checkpoint.
-                - `.DEFAULT_DEVICE` (str): Device to use for inference. Automatically set to the first GPU in `cfg.GPUs` list.
-        
+            checkpoint : Path | str | None
+                Path to the model checkpoint.
+
+            device : str
+                Device to use for inference (e.g., "cuda:0").
+
+            cls_threshold : float | None
+                Classification threshold for the model.
+
         Raises
         ------
             ValueError
                 If the checkpoint path is not specified or does not exist.
         """
 
-        self.device: str = cfg.DEFAULT_DEVICE
-        self.checkpoint: Path | None = cfg.CHECKPOINT
+        self.device = device
 
-        if self.checkpoint:
-            # Load model weights from checkpoint
-            weights = torch.load(self.checkpoint, 
-                                map_location=self.device,
-                                mmap=True,
-                                weights_only=True)['weights']
+        if checkpoint and Path(checkpoint).is_file() and Path(checkpoint).suffix == '.pth':
+
+            # Load model & weights from checkpoint
+            _chkp = torch.load(checkpoint, 
+                               map_location=device,
+                               mmap=True,
+                               weights_only=True)
+            weights, model_cfg = _chkp['weights'], _chkp['config']
             
             # Initialize model with weights, set to eval mode 
-            self.model = MobaNet(cfg)
+            self.model = MobaNet(
+                model=model_cfg['MODEL'],
+                unet_depth=model_cfg['UNET_DEPTH'],
+                conv_depth=model_cfg['CONV_DEPTH'],
+                in_channels=model_cfg['INPUT_CHANNELS'],
+                seg_classes=model_cfg['SEG_CLASSES'],
+                cls_classes=model_cfg['CLS_CLASSES'],
+                cls_threshold=cls_threshold,
+                inference=True
+            )
+
             self.model.load_state_dict(weights)
-            self.model = self.model.to(self.device)
+            self.model = self.model.to(device)
             self.model.eval()
         else:
-            raise ValueError("Checkpoint path is not specified or does not exist.")
+            raise ValueError(f"Checkpoint must be an existing file with .pth extension.")
 
     def predict(self, 
                 input: str | Path | np.ndarray | torch.Tensor
@@ -73,16 +91,19 @@ class Predictor:
 
         Example
         -------
-        >>> from configs.cfgparser import Config
         >>> from predict import Predictor
-
-        >>> cfg = Config('configs/config.yaml', inference=True, cli=False)
-        >>> predictor = Predictor(cfg)
-
+        >>> model = Predictor('saved/exp_0/MobaNet-model.pth', 'cuda:0', 0.8)
         >>> imID = 'ESP_123456_1234_RED-1234_1234'
         >>> impath = f'{cfg.IMG_DIR}/{imID}.png'
-        >>> output = predictor.predict(impath)
+        >>> output = model.predict(impath)
         """
+
+        # Basic environment check
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "This library requires a GPU with CUDA support. "
+                "Please verify the PyTorch installation and ensure that a compatible GPU is available."
+            )
         
         if isinstance(input, (str, Path)):
             # Load image from file; (H, W, C)
@@ -114,36 +135,24 @@ class Predictor:
         with torch.inference_mode():
             return self.model(tensor)['seg']
 
-def main(cfg: Config):
-    """
-    Main function to run the predictor.
-
-    Args
-    ----
-        cfg : Config
-            Configuration object containing the following attributes:
-            - `.DEFAULT_DEVICE` (str): Device to use for inference. Automatically set to the first GPU in `cfg.GPUs` list.
-            - `.MSK_PATH` (Path): Path to save the predicted masks.
-    """
-    
-    device: str = cfg.DEFAULT_DEVICE
-    maskpath: Path = cfg.MSK_DIR
-
-    model = Predictor(cfg)
-    loader = DatasetTools.predict_dataloader(cfg)
-
-    for batch in loader:
-        ids, images = batch['id'], batch['image'].to(device)
-        masks = model.predict(images)
-        save_predictions(maskpath, masks, ids)
 
 if __name__ == "__main__":
-    cfg = Config('configs/config.yaml', inference = True, cli=True)
+    # Load the YAML into a dict
+    with Path("configs/config.yaml").open() as f:
+        cfg: dict = yaml.load(f, Loader=yaml.FullLoader)
 
-    if torch.cuda.is_available():
-        main(cfg)
-    else:
-        raise RuntimeError(
-            'This library requires a GPU with CUDA support. '
-            'Please verify the PyTorch installation and ensure that a compatible GPU is available.'
-        ) 
+    # Default CLI behavior. Allows: python predict.py --FOO=bar
+    cfg = parse_cli_args(cfg, inference=True)
+
+    # Instantiate the Config object
+    CONF: Config = Config(cfg, inference=True)
+
+    # Initialize model and data loader
+    model = Predictor(CONF.CHECKPOINT, CONF.DEFAULT_DEVICE)
+    loader = DatasetTools.predict_dataloader(CONF)
+
+    # Run prediction on batched images
+    for batch in loader:
+        ids, images = batch['id'], batch['image'].to(CONF.DEFAULT_DEVICE)
+        masks = model.predict(images)
+        save_predictions(CONF.MSK_DIR, masks, ids)

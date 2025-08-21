@@ -20,7 +20,7 @@ SEED:
   type: int
   help: Random seed for the dataset split.
 
-TRAIN_SET_COMPOSITION: 
+TRAIN_SET: 
   default: full
   type: str
   choices: [full, boundary]
@@ -29,7 +29,7 @@ TRAIN_SET_COMPOSITION:
     * full:     unfiltered dataset
     * boundary: only images containing boundaries
 
-TEST_SET_COMPOSITION:
+TEST_SET:
   default: full
   type: str
   choices: [full, boundary]
@@ -62,7 +62,7 @@ NUM_WORKERS:
 # MODEL CONFIGURATION
 # =====================================================
 MODEL: 
-  default: MobaNet_C
+  default: MobaNet_ED
   type: str
   choices: [MobaNet_EDC, MobaNet_ED, MobaNet_EC, MobaNet_C, MobaNet_D, UNet]
   help: |
@@ -75,7 +75,7 @@ MODEL:
     * UNet:        Standard U-Net architecture.
 
 CHECKPOINT:
-  default: saved/exp_0/MobaNet_C_full-model.pth
+  default: null
   type: str
   help: |
     Path to the checkpoint file containing pretrained weights.
@@ -204,7 +204,7 @@ SDM_SMOOTHING_ALPHA:
 # LOSS CONFIGURATION
 # =====================================================
 LOSS:
-  default: ClsCE
+  default: SoftDICE
   type: str
   choices: [SoftDICE, HardDICE, IoU, SegCE, wSegCE, ClsCE, MAE, cMAE, sMAE, Boundary]
   help: | 
