@@ -171,10 +171,10 @@ All configurable options, sensible defaults, and variable types are defined in t
 
    | | Option | Type | Description |
    |---|---|---|---|
-   | **Directories** |------------------------|-------|--------------------------------------------------------------|
+   | **Directories** |-----------------------|-------|--------------------------------------------------------------|
    || `DATASET_DIR` | `str` | Path to the dataset folder |
    || `RESULTS_DIR` | `str` | Path to the output folder |
-   | **Dataset** |------------------------|-------|--------------------------------------------------------------|
+   | **Dataset** |-----------------------|-------|--------------------------------------------------------------|
    || `SEED` | `int` | Random seed for dataset split |
    || `TRAIN_SET` | `str` | Training-set composition: <br>• `full`: unfiltered dataset  <br>• `boundary`: only images containing boundaries |
    || `TEST_SET` | `str` | Test-set composition: <br>• `full`: unfiltered dataset  <br>• `boundary`: only images containing boundaries |
@@ -182,7 +182,7 @@ All configurable options, sensible defaults, and variable types are defined in t
    || `CROSS_VALIDATION` | `bool` | Enable K-fold cross-validation |
    || `DEFAULT_FOLD` | `int` | Fold to use when CV is disabled |
    || `NUM_WORKERS` | `int` | Number of subprocesses used by PyTorch `DataLoader`. If set to 0, data loading occurs in the main process |
-   | **Model** |------------------------|-------|--------------------------------------------------------------|
+   | **Model** |-----------------------|-------|--------------------------------------------------------------|
    || `MODEL` | `str` | The user can either train the entire model end-to-end in a single run, or train each component separately, using dedicated datasets and loss functions for each part: <br>• `MobaNet-ED`: multi-output UNet with trainable Encoder & Decoder <br> • `MobaNet-EDC`: multi-output UNet with trainable Encoder, Decoder & Classification head <br>• `MobaNet-C`: multi-output UNet with trainable Classification head <br>• `MobaNet-D`: multi-output UNet with trainable Decoder <br>• `UNet`: standard U-Net architecture.  |
    || `CHECKPOINT` | `str` | Path to the checkpoint file containing pre-trained weights <br>• When in `training` mode -  training will start from this checkpoint, unless `CHECKPOINT` is set to `null` <br>• When in `inference` mode - predictions will be made using this checkpoint; has to be set to a valid path |
    || `INPUT_SIZE` | `int` | Input image side length (pixels) |
@@ -190,42 +190,42 @@ All configurable options, sensible defaults, and variable types are defined in t
    || `UNET_DEPTH` | `int` | Number of down-sampling levels in a UNet (incl. bottleneck) |
    || `CONV_DEPTH` | `int` | Base feature-map depth of the Conv2D block (doubles per level) |
    || `BATCH_SIZE` | `int` | Training batch size |
-   | **Segmentation** |------------------------|-------|--------------------------------------------------------------|
+   | **Segmentation** |-----------------------|-------|--------------------------------------------------------------|
    || `SEG_CLASSES` | `int` | Number of segmentation classes |
    || `SEG_DROPOUT` | `float` | Dropout for encoder/decoder |
-   | **Classification** |------------------------|-------|--------------------------------------------------------------|
+   | **Classification** |-----------------------|-------|--------------------------------------------------------------|
    || `CLS_CLASSES` | `int` | Number of classification classes |
    || `CLS_DROPOUT` | `float` | Dropout in classification head |
    || `CLS_THRESHOLD` | `float` | Positive-class probability threshold |
-   | **Optimizer** |------------------------|-------|--------------------------------------------------------------|
+   | **Optimizer** |-----------------------|-------|--------------------------------------------------------------|
    || `INIT_LR` | `float` | Initial learning rate at the beginning of warmup |
    || `BASE_LR` | `float` | Base learning rate reached by the end of warmup |
    || `L2_DECAY` | `float` | L2 regularization decay |
    || `WARMUP_EPOCHS` | `int` | Number of warmup epochs (0 = no warmup) |
    || `TRAIN_EPOCHS` | `int` | Number of training epochs (excl. warmup) |
-   | **SDM** |------------------------|-------|--------------------------------------------------------------|
+   | **SDM** |-----------------------|-------|--------------------------------------------------------------|
    || `SDM_KERNEL_SIZE` | `int` | Kernel size for SDM estimation |
    || `SDM_DISTANCE` | `str` | Type of distance used for the SDM. Available options: `manhattan`, `chebyshev`, `euclidean` |
    || `SDM_NORMALIZATION` | `str` | SDM normalisation mode:: <br>• `minmax`: by both max and min distance values of each individual SDM. <br>• `dynamic_max`: by the max distance value of each individual SDM. <br>• `static_max`: by the global max distance value (depends on `SDM_DISTANCE`)|
    || `SDM_SMOOTHING` | `bool` |  Whether the multi-class SDM is calculated in a smooth or discrete manner |
    || `SDM_SMOOTHING_ALPHA` | `float` | Smoothing factor for `logsumexp`; only relevant if `SDM_SMOOTHING == True` |
-   | **Loss** |------------------------|-------|--------------------------------------------------------------|
+   | **Loss** |-----------------------|-------|--------------------------------------------------------------|
    || `LOSS` | `str` | Loss function used to train the model. Can either be a single loss or a combination of multiple losses, separated by `_` (e.g., `softDICE_BCE`): <br>• `SoftDICE`: Soft (probabilistic) DICE <br>• `HardDICE`: Hard (discrete) DICE <br>• `IoU`: Intersection over Union <br>• `SegCE`: Segmentation Cross-Entropy <br>• `wSegCE`: SDM-weighted Segmentation Cross-Entropy <br>• `ClsCE`: Classification Cross-Entropy <br>• `MAE`: Mean Absolute Error <br>• `cMAE`: Clamped Mean Absolute Error <br>• `sMAE`: Signed Mean Absolute Error <br>• `Boundary` |
    || `ADAPTIVE_WEIGHTS` | `bool` | Auto-balance multi-loss components |
    || `STATIC_WEIGHTS` | `list` | Manual loss weights (if `ADAPTIVE_WEIGHTS = False`) |
    || `CLAMP_DELTA` | `float` | Delta for `cMAE` kernel clamping. Smaller values concentrate the network’s capacity on details near the boundary |
    || `SIGMOID_STEEPNESS` | `int` | Sigmoid steepness for `DICE`/`IoU`/`sMAE` losses. Higher values yield a steeper curve and a closer approximation of the step function |
-   | **Evaluation** |------------------------|-------|--------------------------------------------------------------|
+   | **Evaluation** |-----------------------|-------|--------------------------------------------------------------|
    || `SAVE_MODEL` | `bool` | Save best model checkpoint |
    || `EVAL_METRIC` | `str` | Best epoch selection metric: <br>• `TTR`: True-to-test ratio. Measures classification accuracy <br>• `DSC`: DICE score. Measures global overlap <br>• `IoU`: Intersection over Union score. Measures global overlap, but penalizes false positives more harshly <br>• `ASD`: Average Symmetric Distance. Measures the mean distance between the boundaries of ground-truth and predicted segmentations <br>• `AD`: Average one-way Distance. Relaxes the impact of false-positives <br>• `HD95`: Hausdorff Distance 95th percentile. Measures the worst-case boundary discrepancy <br>• `D95`: One-way Distance 95th percentile. Relaxes the impact of false-positives  <br>• `CMA`: Combined Mean Accuracy. A weighted combination of the above |
    || `CMA_COEFFICIENTS` | `dict` | Coefficients that define the contribution of each metric to the overall `CMA` |
    || `DISTANCE_METRICS` | `bool` | Compute `ASD`, `AD`, `HD95`, `D95` during eval |
-   | **DDP** |------------------------|-------|--------------------------------------------------------------|
+   | **DDP** |-----------------------|-------|--------------------------------------------------------------|
    || `GPUs` | `list` | GPU indices for DDP |
    || `MASTER_ADDR` | `str` | Address of the master node |
    || `MASTER_PORT` | `str` | Port for DDP communication |
    || `NCCL_P2P` | `bool` | Enable peer-to-peer communication for DDP; Disabling this might help if you encounter issues with DDP |
-   | **Logging** |------------------------|-------|--------------------------------------------------------------|
+   | **Logging** |-----------------------|-------|--------------------------------------------------------------|
    || `LOG_WANDB` | `bool` | Enable Weights & Biases logging |
    || `LOG_LOCAL` | `bool` | Save logs locally |
    || `EXP_ID` | `str` | Custom experiment identifier |
