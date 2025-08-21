@@ -101,7 +101,7 @@ This repository expects the training/testing data to be organized in the pre-def
 * **For Training**:  `train/images` and `train/masks` must exist and contain valid `.png` files.
 * **For Inference**:  only `predict/images` is required with valid `.png` files.
 
-> All other assets (`train/sdms/`, `predict/masks/` & `labels.json`) are generated automatically at runtime.
+> All other assets (`train/sdms/`, `predict/masks/`,  `labels.json` & `tts.json`) are generated automatically at runtime.
 
 ```graphql
 dataset/
@@ -240,8 +240,8 @@ All configurable options, sensible defaults, and variable types are defined in t
    ```console
    (moba) foo@bar:~$ python train.py
    [INFO] Configuration file passed all validation tests.
-   [PREP] Generating class labels: 100%|████████████████████████| 4933/4933 [00:06<00:00, 772.54it/s]
-   [PREP] Generating SDMs on cuda:0: 100%|███████████████████████████| 59/59 [00:07<00:00,  7.63it/s]
+   [PREP] Generating class labels: 100%|███████████████████| 4933/4933 [00:06<00:00, 772.54it/s]
+   [PREP] Generating SDMs on cuda:0: 100%|██████████████████████| 59/59 [00:07<00:00,  7.63it/s]
    [INFO] Running in non-distributed mode on cuda:0 ...
    [WARM] Warming up for 10 epochs ...
    [TRAIN] Training for 200 epochs ...
