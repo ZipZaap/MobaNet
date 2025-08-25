@@ -147,7 +147,7 @@ Each *image_ID* is assigned a class based on the dominant label in its correspon
 ## :brain: Network architechture
 
 ...
-image
+![Alt text](./figures/Unet.png)
 ...
 
 The layout of the network is similar to that of a UNet with an aditional classification path barnching off at the bottlneck layer. Since network graph in our code is constructed dynamically, the user is free to customize the number of horizontal layers in the UNet or the feature depth of the Conv2D blocks, as well as the number of input channels and output classes.
