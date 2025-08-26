@@ -180,9 +180,12 @@ class SDF:
 
     @classmethod
     def sdf(cls, 
-            mask: torch.Tensor, 
-            cfg: Config,
-            h = 0.35
+            mask: torch.Tensor,
+            K: int = 7,
+            imsize: int = 512,
+            distance: str = 'chebyshev',
+            normalization: str | None = 'minmax',
+            h: float = 0.35
             ) -> torch.Tensor:
 
         """Computes the Signed Distance Map (SDM) using the cascaded convolution method.
@@ -200,26 +203,26 @@ class SDF:
             mask : torch.Tensor (B, C, H, W)
                 Input mask tensor.
 
+            K : int
+                Size of the kernel. Must be odd.
+
+            imsize : int
+                Size of the input image.
+
+            distance : str
+                Distance metric to use for the SDF.
+
+            normalization : str
+                Normalization method to use for the SDF.
+
             h : float
                 Parameter for the exponential kernel.
-
-            cfg : Config
-                Configuration object containing the following attributes:
-                - .SDM_KERNEL_SIZE (int): Size of the kernel. Must be odd.
-                - .INPUT_SIZE (int): Size of the input image.
-                - .SDM_DISTANCE (str): Distance metric to use for the SDF.
-                - .SDM_NORMALIZATION (str): Normalization method to use for the SDF.
 
         Returns
         -------
             sdm : torch.Tensor (B, 1, H, W)
                 Signed Distance Map tensor.
         """
-
-        K: int = cfg.SDM_KERNEL_SIZE
-        imsize: int = cfg.INPUT_SIZE
-        distance: str = cfg.SDM_DISTANCE
-        normalization: str = cfg.SDM_NORMALIZATION
 
         edges = cls.compute_sobel_edges(mask)
         n_iters = math.ceil(max(edges.shape[2], edges.shape[3]) / math.floor(K / 2))
@@ -241,7 +244,8 @@ class SDF:
             sdm += (offset + cdt) * edges
             boundary += edges
 
-        sdm = cls._normalize_sdm(sdm, mask, imsize, distance, normalization)
+        if normalization:
+            sdm = cls._normalize_sdm(sdm, mask, imsize, distance, normalization)
 
         return sdm
     
@@ -264,6 +268,10 @@ class SDF:
                 Configuration object must expose:
                 - .SDM_DIR (Path): Directory to save the SDMs.
                 - .DEFAULT_DEVICE (str): Device to run the SDM generation on.
+                - .SDM_KERNEL_SIZE (int): Size of the kernel. Must be odd.
+                - .INPUT_SIZE (int): Size of the input image.
+                - .SDM_DISTANCE (str): Distance metric to use for the SDF.
+                - .SDM_NORMALIZATION (str): Normalization method to use for the SDF.
 
         Example
         -------
@@ -275,6 +283,10 @@ class SDF:
  
         sdm_dir: Path = cfg.SDM_DIR
         device: str = cfg.DEFAULT_DEVICE
+        K: int = cfg.SDM_KERNEL_SIZE
+        imsize: int = cfg.INPUT_SIZE
+        distance: str = cfg.SDM_DISTANCE
+        normalization: str = cfg.SDM_NORMALIZATION
 
         if not sdm_dir.exists():
             sdm_dir.mkdir(exist_ok=True)
@@ -284,7 +296,7 @@ class SDF:
             for batch in tqdm(loader, desc=f'[PREP] Generating SDMs on {device}'):
                 imIDs = batch['id']
                 masks = batch['mask'].to(device)
-                sdms = SDF.sdf(masks, cfg)
+                sdms = SDF.sdf(masks, K, imsize, distance, normalization)
 
                 for id, sdm in zip(imIDs, sdms):
                     sdm = sdm.permute(1, 2, 0) # (1, H, W) → (H, W, 1) before saving
