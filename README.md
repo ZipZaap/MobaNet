@@ -1,4 +1,4 @@
-# Multi-output Boundary-Aware U-Net for Semantic Segmentation
+# Multi-output Boundary-Aware U-Net (MobaNet) for Semantic Segmentation
 
 This repository provides an **end-to-end implementation** of a multi-output U-Net that supports both segmentation and classification, along with a set of distance-based loss functions for improved boundary prediction. All utilities needed to generate distance maps and train the model are included - no extra tooling required.
 
