@@ -32,27 +32,21 @@ This repository provides an **end-to-end implementation** of a multi-output U-Ne
     (base) x@y:~$ cd AuxNet
     ```
 
-2. Create a virtual environment & activate it
+2. Create a virtual environment from `requirements.yml` & activate it
 
     ```console
-    (base) x@y:~$ conda create --name moba python=3.11
+    (base) x@y:~$ conda env create -f requirements.yml
     (base) x@y:~$ conda activate moba
     (moba) x@y:~$ 
     ```
 
 3. Install the latest PyTorch version and make sure it is cuda-enabled. Choose the cuda version supported by your GPU.
-   This step is done fisrt and independently to make sure that PyTorch doesn't default to a CPU install.
+   This step is done independently to make sure that PyTorch doesn't default to a CPU install.
 
     ```console
     (moba) x@y:~$ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
     (moba) x@y:~$ python -c "import torch; print(torch.cuda.is_available())"
     True
-    ```
-
-4. Update your virtual environment with the remaining dependencies
-
-    ```console
-    (moba) x@y:~$ conda env update -f requirements.yml
     ```
 
 ## :open_file_folder: Repository structure
@@ -72,6 +66,9 @@ model/
 │   ├─loss.py --------------------- # Loss functions for training
 │   └─metrics.py ------------------ # Evaluation metrics
 │
+notebooks/
+│   └─sdm_tests.ipynb.py ---------- # Distance transform speed & accuracy tests
+│
 saved/
 │   └─exp_N/
 │      ├─run-best.json ------------ # Best epoch metrics
@@ -81,7 +78,7 @@ saved/
 utils/
 │   ├─dataset.py ------------------ # PyTorch DataLoaders + train/test split logic
 │   ├─loggers.py ------------------ # Experiment tracking tools
-│   ├─managers.py ----------------- # Model loading, device allocation & process mgmt
+│   ├─managers.py ----------------- # Model loading, device allocation & process management
 │   ├─sdf.py ---------------------- # Signed Distance Map utilities
 │   └─util.py --------------------- # Misc helper functions
 |
@@ -287,13 +284,11 @@ All configurable options, sensible defaults, and variable types are defined in t
    output = model.predict(impath)
    ```
 
-### CMD output
-
 ## :artificial_satellite: Example use-case
 
 ## :memo: License
 
-Distributed under the MIT License. See [`LICENSE`](LICENSE.txt) for more information.
+Distributed under the Apache 2.0 License. See [`LICENSE`](LICENSE.txt) for more information.
 
 ## :envelope: Contact
 

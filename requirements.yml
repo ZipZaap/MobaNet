@@ -1,0 +1,13 @@
+name: moba
+channels:
+  - defaults
+dependencies:
+  - scipy
+  - matplotlib
+  - python=3.11
+  - pyyaml
+  - tqdm
+  - ipykernel
+  - opencv
+  - git
+  - conda-forge::albumentations
