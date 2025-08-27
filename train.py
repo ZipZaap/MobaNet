@@ -9,7 +9,6 @@ from torch.multiprocessing.spawn import spawn
 from torch.optim.lr_scheduler import LinearLR
 
 from utils.sdf import SDF
-# from utils.util import setup_dirs
 from utils.loggers import Logger
 from utils.dataset import DatasetTools
 from utils.managers import ProcessManager

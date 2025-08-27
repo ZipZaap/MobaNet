@@ -145,16 +145,35 @@ class MobaNet(nn.Module):
 
         Args
         ----
-            cfg : Config
-                Configuration object containing the following attributes:
-                - `.MODEL` (str): Model type
-                - `.UNET_DEPTH` (int): Number of layers in the encoder/decoder.
-                - `.CONV_DEPTH` (int): Depth Conv2d block in 1st layer (doubles with each layer).
-                - `.INPUT_CHANNELS` (int): Number of input channels.
-                - `.SEG_CLASSES` (int): Number of segmentation classes.
-                - `.SEG_DROPOUT` (float): Dropout rate for segmentation layers.
-                - `.CLS_CLASSES` (int): Number of classification classes.
-                - `.CLS_DROPOUT` (float): Dropout rate for classification layers.
+            model : str
+                Model type
+
+            unet_depth : int
+                Number of layers in the encoder/decoder
+
+            conv_depth : int
+                Depth Conv2d block in 1st layer (doubles with each layer).
+
+            in_channels : int
+                Number of input channels.
+
+            seg_classes : int
+                Number of segmentation classes.
+
+            cls_classes : int
+                Number of classification classes.
+
+            seg_dropout : float
+                Dropout rate for segmentation layers.
+
+            cls_dropout : float
+                Dropout rate for classification layers.
+
+            cls_threshold : float
+                Classification threshold for filtering predictions.
+
+            inference : bool
+                Whether the model is in inference mode.
         """
 
         super().__init__()
@@ -175,6 +194,19 @@ class MobaNet(nn.Module):
         self.classifier = Classifier(enc_ch[-1], cls_classes, cls_dropout)
 
     def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        """
+        Forward pass for the MobaNet model.
+
+        Args
+        ----
+            x : torch.Tensor (B, C, H, W)
+                Input tensor.
+
+        Returns
+        -------
+            dict[str, torch.Tensor]
+                Dictionary containing the output tensors.
+        """
         if self.inference:
 
             B, C, H, W = x.shape
@@ -225,16 +257,3 @@ class MobaNet(nn.Module):
             else: # 'MobaNet' in self.model
                 cls_logits = self.classifier(x)
                 return {'seg': seg_logits, 'cls': cls_logits}
-            
-    # unet_depth: int = cfg.UNET_DEPTH
-    # conv_depth: int = cfg.CONV_DEPTH
-    # in_channels: int = cfg.INPUT_CHANNELS
-    # seg_classes: int = cfg.SEG_CLASSES
-    # cls_classes: int = cfg.CLS_CLASSES
-    # seg_dropout: Optional[float] = getattr(cfg, "SEG_DROPOUT", None)
-    # cls_dropout: Optional[float] = getattr(cfg, "CLS_DROPOUT", None)
-
-    # self.model: str = cfg.MODEL
-    # self.inference: bool = cfg._inference
-    # self.cls_threshold: float | None = cfg.CLS_THRESHOLD
-    # self.boundary_class: int = cfg.SEG_CLASSES
